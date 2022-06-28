@@ -92,9 +92,9 @@ class MessengerClient:
         self._logins: dict = {}
         self._userid_selected: int = -1
 
-        self.main()
-
         Thread(target=self.receive, daemon=True).start()
+
+        self.main()
 
     def show_error(self, title: str, message: str) -> None:
         """Показывает ошибку.
@@ -140,28 +140,35 @@ class MessengerClient:
         if user_id != self._userid_selected:
             self._userid_selected = user_id
 
+            messages = []
+
             for smsg in self.__sended:
                 if smsg[3] != self._userid_selected:
                     continue
 
-                print("SENDED:", smsg[2])
+                messages.append(smsg)
 
             for rmsg in self.__received:
                 if rmsg[1] != self._userid_selected:
                     continue
 
-                print("RECEIVED:", rmsg[2])
+                messages.append(rmsg)
+
+            messages.sort(key=lambda message: message[0])
+
+            for msg in messages:
+                if msg[3] == self._userid_selected:
+                    print("SENDED:", msg[2])
+                    continue
+
+                print("RECEIVED:", msg[2])
 
     def receive(self) -> None:
         """Получает сообщения от сервера."""
-        print("IN")
         while True:
-            print("ITER")
             jdata = self._sock.recv(1024)
-            print("GET", jdata)
             data = loads(jdata.decode("utf8"))
             com = data[0]
-            print("Data:", data)
 
             if com == "register_status":
                 status = data[1]

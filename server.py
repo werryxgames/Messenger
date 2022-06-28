@@ -38,7 +38,7 @@ def encrypt_password(user_id: int, password: str) -> str:
         ).digest() + PASSWORD_EXTRA_SALT.encode("utf8"),
         salt=user_id.encode("utf8"),
         desired_key_bytes=24,
-        rounds=16
+        rounds=64
     )).decode("utf8").replace("=", "_")
     return hashed_password
 
@@ -52,13 +52,13 @@ class Database:
         Аргументы:
             filepath:   Путь к базе данных.
         """
-        self.con = connect(filepath)
-        self.cur = self.con.cursor()
+        self.__con = connect(filepath)
+        self.__cur = self.__con.cursor()
 
     def sql(
         self,
         sql_text: str,
-        format_: list = None,
+        format_: Optional[list] = None,
         noresult: bool = False
     ) -> Union[bool, list, tuple]:
         """Выполняет SQL код.
@@ -91,16 +91,13 @@ class Database:
             code += stripped_line
 
             if stripped_line.endswith(";"):
-                formats = [
-                    format_.pop()
-                    for _ in range(code.count("?"))
-                ]
+                formats = [format_.pop() for _ in range(len(format_))]
 
-                cursor = self.cur.execute(code, tuple(formats))
+                cursor = self.__cur.execute(code, tuple(formats))
                 results.append(cursor.fetchall())
                 code = ""
 
-        self.con.commit()
+        self.__con.commit()
 
         if noresult:
             return all(len(result) == 0 for result in results)
@@ -120,17 +117,17 @@ class Database:
             DROP TABLE IF EXISTS direct_messages;
 
             CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 0,
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 name VARCHAR(16) NOT NULL,
-                password VARCHAR(32) NOT NULL
+                password CHAR(32) NOT NULL
             );
 
             CREATE TABLE direct_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 0,
-                sender INTEGER(32) NOT NULL,
-                content INTEGER(2048) NOT NULL,
-                receiver INTEGER(32) NOT NULL,
-                read BOOLEAN(1) NOT NULL DEFAULT 0
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                sender INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                receiver INTEGER NOT NULL,
+                read TINYINT NOT NULL DEFAULT 0
             );
         """, noresult=True)
 
@@ -245,7 +242,7 @@ class Database:
 
     def close(self):
         """Закрывает базу данных."""
-        self.con.close()
+        self.__con.close()
 
 
 class NetworkedClient:
@@ -327,4 +324,20 @@ def main():
 
 
 if __name__ == "__main__":
+    dtb.reset_database()
+    print(dtb.create_account("Werryx", "123456") == 0)
+    print(dtb.create_account("Werland", "123456") == 0)
+    print(dtb.create_account("zhbesluk", "123456") == 0)
+    print(dtb.sql("""
+        INSERT INTO direct_messages (sender, receiver, content) VALUES
+            (2, 1, "Привет, я Werland"),
+            (2, 1, "А ты?"),
+            (1, 2, "Я - Werryx"),
+            (2, 1, "Как дела?"),
+            (3, 1, "Помнишь?"),
+            (1, 2, "Нормально");
+    """, noresult=True))
+    print(dtb.sql("SELECT * FROM direct_messages;"))
+    # dtb.close()
+
     main()
