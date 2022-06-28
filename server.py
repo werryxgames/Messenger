@@ -308,7 +308,7 @@ def main():
     with sock:
         while True:
             try:
-                adrdata = sock.recvfrom(1024)
+                adrdata = sock.recvfrom(70000)
             except (ConnectionResetError, ConnectionAbortedError):
                 pass
 
@@ -331,12 +331,12 @@ if __name__ == "__main__":
     print(dtb.sql("""
         INSERT INTO direct_messages (sender, receiver, content) VALUES
             (2, 1, "Привет, я Werland"),
-            (2, 1, "А ты?"),
+            (2, 1, ?),
             (1, 2, "Я - Werryx"),
             (2, 1, "Как дела?"),
             (3, 1, "Помнишь?"),
             (1, 2, "Нормально");
-    """, noresult=True))
+    """, [f"А ты?{' ОЧЕНЬ ДЛИННАЯ СТРОКА!' * 20}"], noresult=True))
     print(dtb.sql("SELECT * FROM direct_messages;"))
     # dtb.close()
 

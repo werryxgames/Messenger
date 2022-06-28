@@ -156,17 +156,32 @@ class MessengerClient:
 
             messages.sort(key=lambda message: message[0])
 
-            for msg in messages:
-                if msg[3] == self._userid_selected:
-                    print("SENDED:", msg[2])
-                    continue
+            cnv = self.win.messages
+            cwh = cnv.winfo_width()
 
-                print("RECEIVED:", msg[2])
+            cnv.delete("all")
+
+            offset = 0
+
+            for msg in messages:
+                sended = msg[3] == self._userid_selected
+
+                text = cnv.create_text(
+                    cwh if sended else 0,
+                    offset,
+                    text=msg[2],
+                    anchor=tk.NE if sended else tk.NW,
+                    fill="#ddd",
+                    font="Arial 16",
+                    width=cwh - 20
+                )
+                text_bbox = cnv.bbox(text)
+                offset += text_bbox[3] - text_bbox[1]
 
     def receive(self) -> None:
         """Получает сообщения от сервера."""
         while True:
-            jdata = self._sock.recv(1024)
+            jdata = self._sock.recv(70000)
             data = loads(jdata.decode("utf8"))
             com = data[0]
 
