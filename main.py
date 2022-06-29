@@ -1,5 +1,6 @@
 """Мессенджер на Python (клиент)."""
 # -*- coding: utf-8 -*-
+
 import tkinter as tk
 
 from json import dumps
@@ -79,6 +80,10 @@ class MessengerClient:
     MAIN_FOREGROUND = "#dfdfdf"
     SECOND_BACKGROUND = "#c9c9c9"
     THIRD_BACKGROUND = "#bfbfbf"
+    MESSAGE_BACK_COLOR = "#c5fad5"
+    MESSAGE_FORE_COLOR = "#444"
+    MESSAGE_BACK_COLOR2 = "#eee"
+    MESSAGE_FORE_COLOR2 = "#444"
     _RECEIVE_SLEEP_TIME = 1 / 60
 
     def __init__(self) -> None:
@@ -111,9 +116,11 @@ class MessengerClient:
         dtitle = (mlen - ltitle) / 2
         dmessage = (mlen - lmessage) / 2
         print("-" * (mlen + 4))
-        print(f"|{' ' * (floor(dtitle) + 1)}{title}{' ' * (ceil(dtitle) + 1)}|")
+        print(f"|{' ' * (floor(dtitle) + 1)}{title}\
+{' ' * (ceil(dtitle) + 1)}|")
         print("-" * (mlen + 4))
-        print(f"|{' ' * (floor(dmessage) + 1)}{message}{' ' * (ceil(dmessage) + 1)}|")
+        print(f"|{' ' * (floor(dmessage) + 1)}{message}\
+{' ' * (ceil(dmessage) + 1)}|")
         print("-" * (mlen + 4))
 
     def send(self, message: str) -> None:
@@ -123,6 +130,56 @@ class MessengerClient:
             message:    Сообщение.
         """
         self._sock.send(dumps(message).encode("utf8"))
+
+    @staticmethod
+    def create_round_rectangle(
+        cnv,
+        px1,
+        py1,
+        px2,
+        py2,
+        radius,
+        ign1=False,
+        ign2=False,
+        **kwargs
+    ) -> int:
+        """Создаёт скруглённый прямоугольник.
+
+        Аргументы:
+            cnv:    Холст Tkinter.
+            px1:    Левая точка прямоугольника.
+            py1:    Верхняя точка прямоугольника.
+            px2:    Правая точка прямоугольника.
+            py2:    Нижняя точка прямоугольника.
+            radius: Радиус скругления.
+            kwargs: Дополнительные аргументы cnv.create_polygon().
+
+        Возвращаемое значение: ID Скруглённого прямоугольника на холсте.
+        """
+        points = [
+            px1 + radius, py1,
+            px1 + radius, py1,
+            px2 - radius, py1,
+            px2 - radius, py1,
+            px2, py1,
+            px2, py1 + radius,
+            px2, py1 + radius,
+            px2, py2 - radius,
+            px2, py2 - radius,
+            *((px2, py2, px2, py2) if ign1 else (px2, py2)),
+            px2 - radius, py2,
+            px2 - radius, py2,
+            px1 + radius, py2,
+            px1 + radius, py2,
+            *((px1, py2, px1, py2) if ign2 else (px1, py2)),
+            px1, py2 - radius,
+            px1, py2 - radius,
+            px1, py1 + radius,
+            px1, py1 + radius,
+            px1, py1
+        ]
+
+        return cnv.create_polygon(points, **kwargs, smooth=True)
 
     def user_selected(self) -> None:
         """Обработчик события выбора пользователя.
@@ -135,8 +192,13 @@ class MessengerClient:
         except KeyError:
             return
 
+        sel = listbox.curselection()
+
+        if len(sel) == 0:
+            return
+
         inv_logins = {val: key for key, val in self._logins.items()}
-        user_id = int(inv_logins[listbox.get(listbox.curselection()[0])[1:]])
+        user_id = int(inv_logins[listbox.get(sel[0])[1:]])
 
         if user_id != self._userid_selected:
             self._userid_selected = user_id
@@ -173,7 +235,8 @@ class MessengerClient:
                     offset,
                     text=msg[2],
                     anchor=tk.NE if sended else tk.NW,
-                    fill="#333" if sended else "#ddd",
+                    fill=self.MESSAGE_FORE_COLOR if sended else \
+                         self.MESSAGE_FORE_COLOR2,
                     font="Arial 16",
                     width=cwh - 20
                 )
@@ -183,13 +246,18 @@ class MessengerClient:
                 cnv.move(text, 0, diff)
                 text_bbox = cnv.bbox(text)
 
-                rect = cnv.create_rectangle(
+                rect = self.create_round_rectangle(
+                    cnv,
                     text_bbox[0] - 5,
                     text_bbox[1] - 5,
                     text_bbox[2] + 5,
                     text_bbox[3] + 5,
-                    fill="#aaa" if sended else "#316",
-                    width=0
+                    15,
+                    fill=self.MESSAGE_BACK_COLOR if sended else \
+                         self.MESSAGE_BACK_COLOR2,
+                    width=0,
+                    ign1=sended,
+                    ign2=not sended
                 )
                 cnv.tag_lower(rect)
 
@@ -293,7 +361,10 @@ class MessengerClient:
                     activestyle=tk.NONE,
                     highlightthickness=0
                 )
-                listbox.bind("<<ListboxSelect>>", lambda _: self.user_selected())
+                listbox.bind(
+                    "<<ListboxSelect>>",
+                    lambda _: self.user_selected()
+                )
                 self.root.bind("<Configure>", self.resize)
                 self.win.place(
                     "userlist",
@@ -307,7 +378,13 @@ class MessengerClient:
                     h=-10
                 )
                 scrollbar = ttk.Scrollbar(command=listbox.yview)
-                self.win.place("userlist_scrollbar", scrollbar, relx=0.3, anchor=tk.NW, relh=1)
+                self.win.place(
+                    "userlist_scrollbar",
+                    scrollbar,
+                    relx=0.3,
+                    anchor=tk.NW,
+                    relh=1
+                )
                 listbox.config(yscrollcommand=scrollbar.set)
 
                 cnv = tk.Canvas(
@@ -325,7 +402,19 @@ class MessengerClient:
                     anchor=tk.NW,
                     y=5,
                     w=-25,
-                    h=-10
+                    h=-40
+                )
+                self.win.place(
+                    "messages_input",
+                    ttk.Entry(),
+                    x=15,
+                    relx=0.3,
+                    rely=1,
+                    anchor=tk.NW,
+                    relw=0.7,
+                    w=-85,
+                    y=-24,
+                    h=24
                 )
 
                 for user in self._logins.values():
