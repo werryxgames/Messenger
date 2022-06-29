@@ -1,3 +1,4 @@
+"""Тестирование сервера."""
 import io
 import pytest
 
