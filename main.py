@@ -91,6 +91,7 @@ class MessengerClient:
         self.__received: list = []
         self._logins: dict = {}
         self._userid_selected: int = -1
+        self.last_height: int = -1
 
         Thread(target=self.receive, daemon=True).start()
 
@@ -162,7 +163,7 @@ class MessengerClient:
 
             cnv.delete("all")
 
-            offset = chg - 20
+            offset = chg
 
             for msg in messages[::-1]:
                 sended = msg[3] == self._userid_selected
@@ -193,6 +194,23 @@ class MessengerClient:
                 cnv.tag_lower(rect)
 
                 offset += diff
+
+    def resize(self, event) -> None:
+        """Обработчик изменения размера окна."""
+        if event.height == self.last_height:
+            return
+
+        self.last_height = event.height
+
+        try:
+
+            listbox = self.win.userlist
+
+            if len(listbox.curselection()) > 0:
+                self._userid_selected = -1
+                listbox.event_generate("<<ListboxSelect>>")
+        except KeyError:
+            pass
 
     def receive(self) -> None:
         """Получает сообщения от сервера."""
@@ -276,6 +294,7 @@ class MessengerClient:
                     highlightthickness=0
                 )
                 listbox.bind("<<ListboxSelect>>", lambda _: self.user_selected())
+                self.root.bind("<Configure>", self.resize)
                 self.win.place(
                     "userlist",
                     listbox,
@@ -324,6 +343,8 @@ class MessengerClient:
         self.root.wm_title("Messenger")
         self.root.wm_geometry("1000x600")
         self.win = Window(self.root)
+
+        self.last_height = self.root.winfo_height()
 
         style = ttk.Style(self.root)
         style.theme_use("clam")
