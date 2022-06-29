@@ -40,4 +40,4 @@ jobs:
 
       - name: Тесты с Pytest
         run: |
-          pytest tests/test*
+          python -m pytest tests/test*
