@@ -102,7 +102,8 @@ class MessengerClient:
 
         self.main()
 
-    def show_error(self, title: str, message: str) -> None:
+    @staticmethod
+    def show_error(title: str, message: str) -> None:
         """Показывает ошибку.
 
         Аргументы:
