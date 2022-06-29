@@ -302,6 +302,9 @@ class MessengerClient:
                 for user in self._logins.values():
                     listbox.insert(tk.END, f" {user}")
 
+                listbox.select_set(0)
+                listbox.event_generate("<<ListboxSelect>>")
+
             sleep(self._RECEIVE_SLEEP_TIME)
 
 
