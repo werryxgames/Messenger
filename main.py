@@ -158,16 +158,17 @@ class MessengerClient:
 
             cnv = self.win.messages
             cwh = cnv.winfo_width()
+            chg = cnv.winfo_height()
 
             cnv.delete("all")
 
-            offset = 0
+            offset = chg - 20
 
-            for msg in messages:
+            for msg in messages[::-1]:
                 sended = msg[3] == self._userid_selected
 
                 text = cnv.create_text(
-                    cwh if sended else 0,
+                    cwh - 5 if sended else 5,
                     offset,
                     text=msg[2],
                     anchor=tk.NE if sended else tk.NW,
@@ -176,7 +177,12 @@ class MessengerClient:
                     width=cwh - 20
                 )
                 text_bbox = cnv.bbox(text)
-                offset += text_bbox[3] - text_bbox[1]
+
+                diff = text_bbox[1] - text_bbox[3] - 20
+                cnv.move(text, 0, diff)
+                text_bbox = cnv.bbox(text)
+
+                offset += diff
 
     def receive(self) -> None:
         """Получает сообщения от сервера."""
