@@ -236,7 +236,7 @@ class MessengerClient:
                     text=msg[2],
                     anchor=tk.NE if sended else tk.NW,
                     fill=self.MESSAGE_FORE_COLOR if sended else \
-                         self.MESSAGE_FORE_COLOR2,
+                        self.MESSAGE_FORE_COLOR2,
                     font="Arial 16",
                     width=cwh - 20
                 )
@@ -253,8 +253,8 @@ class MessengerClient:
                     text_bbox[2] + 5,
                     text_bbox[3] + 5,
                     15,
-                    fill=self.MESSAGE_BACK_COLOR if sended else \
-                         self.MESSAGE_BACK_COLOR2,
+                    fill=self.MESSAGE_BACK_COLOR if sended else
+                        self.MESSAGE_BACK_COLOR2,
                     width=0,
                     ign1=sended,
                     ign2=not sended
@@ -424,7 +424,6 @@ class MessengerClient:
                 listbox.event_generate("<<ListboxSelect>>")
 
             sleep(self._RECEIVE_SLEEP_TIME)
-
 
     def main(self):
         """Основная функция клиента."""
