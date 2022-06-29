@@ -172,7 +172,7 @@ class MessengerClient:
                     offset,
                     text=msg[2],
                     anchor=tk.NE if sended else tk.NW,
-                    fill="#ddd",
+                    fill="#333" if sended else "#ddd",
                     font="Arial 16",
                     width=cwh - 20
                 )
@@ -181,6 +181,16 @@ class MessengerClient:
                 diff = text_bbox[1] - text_bbox[3] - 20
                 cnv.move(text, 0, diff)
                 text_bbox = cnv.bbox(text)
+
+                rect = cnv.create_rectangle(
+                    text_bbox[0] - 5,
+                    text_bbox[1] - 5,
+                    text_bbox[2] + 5,
+                    text_bbox[3] + 5,
+                    fill="#aaa" if sended else "#316",
+                    width=0
+                )
+                cnv.tag_lower(rect)
 
                 offset += diff
 
