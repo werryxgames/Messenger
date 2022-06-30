@@ -96,6 +96,7 @@ class MessengerClient:
         self._logins: dict = {}
         self._userid_selected: int = -1
         self.last_height: int = -1
+        self._is_on_main_tab: bool = False
 
         Thread(target=self.receive, daemon=True).start()
 
@@ -123,7 +124,7 @@ class MessengerClient:
 {' ' * (ceil(dmessage) + 1)}|")
         print("-" * (mlen + 4))
 
-    def send(self, message: str) -> None:
+    def send(self, message) -> None:
         """Отправляет сообщение message на сервер.
 
         Аргументы:
@@ -200,68 +201,70 @@ class MessengerClient:
         inv_logins = {val: key for key, val in self._logins.items()}
         user_id = int(inv_logins[listbox.get(sel[0])[1:]])
 
-        if user_id != self._userid_selected:
-            self._userid_selected = user_id
+        if user_id == self._userid_selected:
+            return
 
-            messages = []
+        self._userid_selected = user_id
 
-            for smsg in self.__sended:
-                if smsg[3] != self._userid_selected:
-                    continue
+        messages = []
 
-                messages.append(smsg)
+        for smsg in self.__sended:
+            if smsg[3] != self._userid_selected:
+                continue
 
-            for rmsg in self.__received:
-                if rmsg[1] != self._userid_selected:
-                    continue
+            messages.append(smsg)
 
-                messages.append(rmsg)
+        for rmsg in self.__received:
+            if rmsg[1] != self._userid_selected:
+                continue
 
-            messages.sort(key=lambda message: message[0])
+            messages.append(rmsg)
 
-            cnv = self.win.messages
-            cwh = cnv.winfo_width()
-            chg = cnv.winfo_height()
+        messages.sort(key=lambda message: message[0])
 
-            cnv.delete("all")
+        cnv = self.win.messages
+        cwh = cnv.winfo_width()
+        chg = cnv.winfo_height()
 
-            offset = chg
+        cnv.delete("all")
 
-            for msg in messages[::-1]:
-                sended = msg[3] == self._userid_selected
+        offset = chg
 
-                text = cnv.create_text(
-                    cwh - 5 if sended else 5,
-                    offset,
-                    text=msg[2],
-                    anchor=tk.NE if sended else tk.NW,
-                    fill=self.MESSAGE_FORE_COLOR if sended else self.
-                    MESSAGE_FORE_COLOR2,
-                    font="Arial 16",
-                    width=cwh - 20
-                )
-                text_bbox = cnv.bbox(text)
+        for msg in messages[::-1]:
+            sended = msg[3] == self._userid_selected
 
-                diff = text_bbox[1] - text_bbox[3] - 20
-                cnv.move(text, 0, diff)
-                text_bbox = cnv.bbox(text)
+            text = cnv.create_text(
+                cwh - 5 if sended else 5,
+                offset,
+                text=msg[2],
+                anchor=tk.NE if sended else tk.NW,
+                fill=self.MESSAGE_FORE_COLOR if sended else self.
+                MESSAGE_FORE_COLOR2,
+                font="Arial 16",
+                width=cwh - 20
+            )
+            text_bbox = cnv.bbox(text)
 
-                rect = self.create_round_rectangle(
-                    cnv,
-                    text_bbox[0] - 5,
-                    text_bbox[1] - 5,
-                    text_bbox[2] + 5,
-                    text_bbox[3] + 5,
-                    15,
-                    fill=self.MESSAGE_BACK_COLOR if sended else self.
-                    MESSAGE_BACK_COLOR2,
-                    width=0,
-                    ign1=sended,
-                    ign2=not sended
-                )
-                cnv.tag_lower(rect)
+            diff = text_bbox[1] - text_bbox[3] - 20
+            cnv.move(text, 0, diff)
+            text_bbox = cnv.bbox(text)
 
-                offset += diff
+            rect = self.create_round_rectangle(
+                cnv,
+                text_bbox[0] - 5,
+                text_bbox[1] - 5,
+                text_bbox[2] + 5,
+                text_bbox[3] + 5,
+                15,
+                fill=self.MESSAGE_BACK_COLOR if sended else self.
+                MESSAGE_BACK_COLOR2,
+                width=0,
+                ign1=sended,
+                ign2=not sended
+            )
+            cnv.tag_lower(rect)
+
+            offset += diff
 
         cnv.configure(scrollregion=cnv.bbox("all"))
 
@@ -281,6 +284,19 @@ class MessengerClient:
                 listbox.event_generate("<<ListboxSelect>>")
         except KeyError:
             pass
+
+    def send_message(self, message: str) -> None:
+        """Отправляет сообщение на сервер.
+
+        Аргументы:
+            message:    Сообщение.
+        """
+        if self._userid_selected == -1:
+            return
+
+        self.win.messages_input.delete(0, tk.END)
+        self.send(["send_message", message[:65535], self._userid_selected])
+        self.send(["get_account_data"])
 
     def receive(self) -> None:
         """Получает сообщения от сервера."""
@@ -350,96 +366,129 @@ class MessengerClient:
                 self.__received = adata[1]
                 self._logins = adata[2]
 
-                for element in self.win.elements.values():
-                    element.destroy()
+                main_tab = self._is_on_main_tab
 
-                frame = tk.Frame(background=self.MAIN_BACKGROUND)
-                self.win.place(
-                    "messages_frame",
-                    frame,
-                    relx=0.3,
-                    relw=0.7,
-                    relh=1
-                )
-                cnv = tk.Canvas(
-                    frame,
-                    background=self.MAIN_BACKGROUND,
-                    bd=0,
-                    highlightthickness=0
-                )
-                cnv_sbar = ttk.Scrollbar(frame)
-                self.win.place(
-                    "messages_scrollbar",
-                    cnv_sbar,
-                    relx=1,
-                    anchor=tk.NE,
-                    relh=1
-                )
-                cnv_sbar.configure(command=cnv.yview)
-                cnv.configure(yscrollcommand=cnv_sbar.set)
-                self.win.place(
-                    "messages",
-                    cnv,
-                    relw=1,
-                    relh=1,
-                    x=20,
-                    y=5,
-                    w=-40,
-                    h=-35
-                )
-                self.win.place(
-                    "messages_input",
-                    ttk.Entry(),
-                    x=15,
-                    relx=0.3,
-                    rely=1,
-                    anchor=tk.NW,
-                    relw=0.7,
-                    w=-85,
-                    y=-24,
-                    h=24
-                )
+                self._is_on_main_tab = True
 
-                listbox = tk.Listbox(
-                    bg=self.MAIN_BACKGROUND,
-                    bd=0,
-                    font="Arial 16 bold",
-                    fg=self.MAIN_FOREGROUND,
-                    selectbackground=self.SELECT_FOREGROUND,
-                    selectmode=tk.SINGLE,
-                    activestyle=tk.NONE,
-                    highlightthickness=0
-                )
-                listbox.bind(
-                    "<<ListboxSelect>>",
-                    lambda _: self.user_selected()
-                )
-                self.root.bind("<Configure>", self.resize)
-                self.win.place(
-                    "userlist",
-                    listbox,
-                    relw=0.3,
-                    relh=1,
-                    anchor=tk.NW,
-                    x=5,
-                    y=5,
-                    w=-10,
-                    h=-10
-                )
-                scrollbar = ttk.Scrollbar(command=listbox.yview)
-                self.win.place(
-                    "userlist_scrollbar",
-                    scrollbar,
-                    relx=0.3,
-                    anchor=tk.NW,
-                    relh=1
-                )
-                listbox.config(yscrollcommand=scrollbar.set)
+                if not main_tab:
+                    frame = tk.Frame(background=self.MAIN_BACKGROUND)
+                    self.win.place(
+                        "messages_frame",
+                        frame,
+                        relx=0.3,
+                        relw=0.7,
+                        relh=1
+                    )
+                    cnv = tk.Canvas(
+                        frame,
+                        background=self.MAIN_BACKGROUND,
+                        bd=0,
+                        highlightthickness=0
+                    )
+                    cnv_sbar = ttk.Scrollbar(frame)
+                    self.win.place(
+                        "messages_scrollbar",
+                        cnv_sbar,
+                        relx=1,
+                        anchor=tk.NE,
+                        relh=1,
+                        h=-30
+                    )
+                    cnv_sbar.configure(command=cnv.yview)
+                    cnv.configure(yscrollcommand=cnv_sbar.set)
+                    self.win.place(
+                        "messages",
+                        cnv,
+                        relw=1,
+                        relh=1,
+                        x=20,
+                        y=5,
+                        w=-40,
+                        h=-35
+                    )
+                    msg_input = ttk.Entry(font="Arial 16")
+                    self.win.place(
+                        "messages_input",
+                        msg_input,
+                        x=15,
+                        relx=0.3,
+                        rely=1,
+                        relw=0.7,
+                        anchor=tk.SW,
+                        w=-95,
+                        h=30
+                    )
+                    msg_input.bind("<Return>", lambda _: self.send_message(
+                        self.win.messages_input.get()
+                    ))
+                    self.win.place(
+                        "message_send_btn",
+                        ttk.Button(
+                            text="Отправить",
+                            command=lambda: self.send_message(
+                                self.win.messages_input.get()
+                            )
+                        ),
+                        relx=1,
+                        rely=1,
+                        anchor=tk.SE,
+                        h=30
+                    )
+
+                    listbox = tk.Listbox(
+                        bg=self.MAIN_BACKGROUND,
+                        bd=0,
+                        font="Arial 16 bold",
+                        fg=self.MAIN_FOREGROUND,
+                        selectbackground=self.SELECT_FOREGROUND,
+                        selectmode=tk.SINGLE,
+                        activestyle=tk.NONE,
+                        highlightthickness=0
+                    )
+                    listbox.bind(
+                        "<<ListboxSelect>>",
+                        lambda _: self.user_selected()
+                    )
+                    self.root.bind("<Configure>", self.resize)
+                    self.win.place(
+                        "userlist",
+                        listbox,
+                        relw=0.3,
+                        relh=1,
+                        anchor=tk.NW,
+                        x=5,
+                        y=5,
+                        w=-10,
+                        h=-10
+                    )
+                    scrollbar = ttk.Scrollbar(command=listbox.yview)
+                    self.win.place(
+                        "userlist_scrollbar",
+                        scrollbar,
+                        relx=0.3,
+                        anchor=tk.NW,
+                        relh=1
+                    )
+                    listbox.config(yscrollcommand=scrollbar.set)
+                else:
+                    listbox = self.win.userlist
+
+                if main_tab:
+                    listbox.delete(0, tk.END)
 
                 for user in self._logins.values():
                     listbox.insert(tk.END, f" {user}")
 
-                listbox.select_set(0)
+                if self._userid_selected != -1:
+                    listbox.select_set(
+                        list(
+                            self._logins.keys()
+                        ).index(str(self._userid_selected))
+                    )
+                    self._userid_selected = -1
+                else:
+                    listbox.select_set(0)
+
                 listbox.event_generate("<<ListboxSelect>>")
 
             sleep(self._RECEIVE_SLEEP_TIME)
