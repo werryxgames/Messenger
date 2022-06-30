@@ -371,6 +371,9 @@ class MessengerClient:
                 self._is_on_main_tab = True
 
                 if not main_tab:
+                    for element in self.win.elements.values():
+                        element.destroy()
+
                     frame = tk.Frame(background=self.MAIN_BACKGROUND)
                     self.win.place(
                         "messages_frame",
