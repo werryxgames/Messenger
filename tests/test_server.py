@@ -212,16 +212,17 @@ def test_get_account_data_not_exists(name):
         [1, 2, "Тест завершён."],
         [1, 3, "Ура."]
     ],
-    ([
-        (1, 1, "2, я 1.", 2, 0),
-        (2, 1, "Привет, Test, я Account.", 3, 0),
-        (6, 1, "Тест завершён.", 2, 0),
-        (7, 1, "Ура.", 3, 0)
-    ], [
-        (3, 3, "Очень приятно.", 1, 0),
-        (4, 3, "Я TestAccount.", 1, 0),
-        (5, 2, "Понял.", 1, 0)
-    ], {2: "Account2", 3: "TestAcc"}))
+        ([
+            (1, 1, "2, я 1.", 2, 0),
+            (2, 1, "Привет, Test, я Account.", 3, 0),
+            (6, 1, "Тест завершён.", 2, 0),
+            (7, 1, "Ура.", 3, 0)
+        ], [
+            (3, 3, "Очень приятно.", 1, 0),
+            (4, 3, "Я TestAccount.", 1, 0),
+            (5, 2, "Понял.", 1, 0)
+        ], {2: "Account2", 3: "TestAcc"})
+    )
 ])
 def test_get_account_data_exists(
     name,
@@ -265,8 +266,9 @@ def test_get_account_data_exists(
     (["Русский", "язык", "поддерживается"],
         "[\"Русский\",\"язык\",\"поддерживается\"]".encode("utf8")),
     ({"Рус": "ский", "я": "зык", "под": "держивается"},
-        "{\"Рус\":\"ский\",\"я\":\"зык\",\"под\":\"держивается\"}" \
-.encode("utf8")),
+        "{\"Рус\":\"ский\",\"я\":\"зык\",\"под\":\"держивается\"}".encode(
+            "utf8"
+        ))
 ])
 def test_encode_message(message, expected_result):
     """Тесты для server.NetworkedClient.encode_message()."""
@@ -285,8 +287,9 @@ def test_encode_message(message, expected_result):
     (["Русский", "язык", "поддерживается"],
         "[\"Русский\",\"язык\",\"поддерживается\"]".encode("utf8")),
     ({"Рус": "ский", "я": "зык", "под": "держивается"},
-        "{\"Рус\":\"ский\",\"я\":\"зык\",\"под\":\"держивается\"}" \
-.encode("utf8")),
+        "{\"Рус\":\"ский\",\"я\":\"зык\",\"под\":\"держивается\"}".encode(
+            "utf8"
+        ))
 ])
 def test_decode_message(expected_result, message):
     """Тесты для server.NetworkedClient.decode_message()."""
@@ -310,10 +313,16 @@ def random_encode_decode_generate():
         for _ in range(length):
             result[
                 "".join(
-[choice(test_letters) for _ in range(randint(*words_length))]
+                    [
+                        choice(test_letters)
+                        for _ in range(randint(*words_length))
+                    ]
                 )
             ] = "".join(
-[choice(test_letters) for _ in range(randint(*words_length))]
+                    [
+                        choice(test_letters)
+                        for _ in range(randint(*words_length))
+                    ]
                 )
     else:
         result = []
@@ -321,8 +330,12 @@ def random_encode_decode_generate():
         for _ in range(length):
             result.append(
                 "".join(
-[choice(test_letters) for _ in range(randint(*words_length))])
+                    [
+                        choice(test_letters)
+                        for _ in range(randint(*words_length))
+                    ]
                 )
+            )
 
 
 @mark.parametrize("message", [
