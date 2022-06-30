@@ -13,7 +13,6 @@ from socket import socket
 from threading import Thread
 from time import sleep
 from tkinter import ttk
-from typing import Optional
 
 
 class Window:
@@ -88,7 +87,7 @@ class MessengerClient:
 
     def __init__(self) -> None:
         """Инициализация класса."""
-        self.root: Optional[tk.Tk] = None
+        self.root = None
         self.win: Window = Window(self.root)
         self._sock: socket = socket(AF_INET, SOCK_DGRAM)
         self._sock.connect(("127.0.0.1", 7505))

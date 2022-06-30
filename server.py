@@ -8,8 +8,6 @@ from socket import AF_INET
 from socket import SOCK_DGRAM
 from socket import socket
 from sqlite3 import connect
-from typing import Optional
-from typing import Union
 
 from bcrypt import kdf
 
@@ -61,7 +59,7 @@ class Database:
     def sql(
         self,
         sql_text: str,
-        format_: Optional[list] = None,
+        format_ = None,
         noresult: bool = False
     ) -> Union[bool, list, tuple]:
         """Выполняет SQL код.
@@ -256,14 +254,14 @@ class Database:
 class NetworkedClient:
     """Класс клиента."""
 
-    def __init__(self, sock: socket, addr: tuple[str, int]) -> None:
+    def __init__(self, sock: socket, addr) -> None:
         self.sock: socket = sock
-        self.addr: tuple[str, int] = addr
-        self.login: Optional[str] = None
-        self.password: Optional[str] = None
+        self.addr = addr
+        self.login = None
+        self.password = None
 
     @staticmethod
-    def encode_message(message: Union[list, dict]) -> bytes:
+    def encode_message(message) -> bytes:
         """Превращает объекты, преобразоваемые в JSON в байты."""
         return dumps(
             message,
@@ -272,11 +270,11 @@ class NetworkedClient:
         ).encode("utf8")
 
     @staticmethod
-    def decode_message(message: bytes) -> Union[list, dict]:
+    def decode_message(message: bytes):
         """Превращает байты в объекты, преобразоваемые в JSON."""
         return loads(message.decode("utf8"))
 
-    def send(self, message: Union[list, dict]) -> None:
+    def send(self, message) -> None:
         """Отправляет сообщение клиенту.
 
         Аргументы:
