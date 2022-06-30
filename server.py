@@ -237,7 +237,6 @@ class Database:
             if rmsg[1] not in usernames:
                 usernames.append(rmsg[1])
 
-        print(usernames)
         for uname in usernames:
             usernames_logins[uname] = self.sql(
                 "SELECT name FROM users WHERE id = ?;",
@@ -245,6 +244,33 @@ class Database:
             )[0][0]
 
         return (sended, received, usernames_logins)
+
+    def send_message(self, login: str, receiver: int, message: str) -> bool:
+        """Создаёт запись в базе данных о сообщении."""
+        sender_id = self.sql(
+            "SELECT id FROM users WHERE name = ?;",
+            [login]
+        )
+        exists_receiver = not self.sql(
+            "SELECT id FROM users WHERE id = ?;",
+            [receiver],
+            noresult=True
+        )
+
+        if len(sender_id) == 0:
+            return False
+
+        if not exists_receiver:
+            return False
+
+        sender_id = sender_id[0][0]
+
+        result = self.sql("""
+            INSERT INTO direct_messages (sender, receiver, content)
+            VALUES (?, ?, ?);
+        """, [sender_id, receiver, message], noresult=True)
+
+        return result
 
     def close(self):
         """Закрывает базу данных."""
@@ -311,6 +337,9 @@ class NetworkedClient:
         elif not (self.login is None and self.password is None):
             if com == "get_account_data":
                 self.send(["account_data", dtb.get_account_data(self.login)])
+            elif com == "send_message":
+                msg = args[0][:65535]
+                dtb.send_message(self.login, args[1], msg)
 
 
 dtb = Database(absolute("messenger.db"))
