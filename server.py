@@ -61,7 +61,7 @@ class Database:
         sql_text: str,
         format_ = None,
         noresult: bool = False
-    ) -> Union[bool, list, tuple]:
+    ):
         """Выполняет SQL код.
 
         Аргументы:
