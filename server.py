@@ -268,9 +268,9 @@ class Database:
         result = self.sql("""
             INSERT INTO direct_messages (sender, receiver, content)
             VALUES (?, ?, ?);
-        """, [sender_id, receiver, message])
+        """, [sender_id, receiver, message], noresult=True)
 
-        return True
+        return result
 
     def close(self):
         """Закрывает базу данных."""
