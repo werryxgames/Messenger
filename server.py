@@ -59,7 +59,7 @@ class Database:
     def sql(
         self,
         sql_text: str,
-        format_ = None,
+        format_=None,
         noresult: bool = False
     ):
         """Выполняет SQL код.
