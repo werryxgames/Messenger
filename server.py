@@ -19,7 +19,10 @@ PASSWORD_EXTRA_SALT = "Pu~w9cC+RV)Bfjnd1oSbLQhjwGP)mJ$R^%+DHp(u)LP@AgMq)dl&0T\
 
 def absolute(path_):
     """Возвращает абсолютный путь из относительного."""
-    return path.join(path.dirname(path.realpath(__file__)), path_)
+    return path.normpath(path.join(
+        path.dirname(path.realpath(__file__)),
+        path_
+    ))
 
 
 def encrypt_password(user_id: int, password: str) -> str:
@@ -81,6 +84,11 @@ class Database:
             format_ = []
         else:
             format_ = format_[::-1]
+
+        try:
+            sql_text = sql_text[:sql_text.index("--")]
+        except ValueError:
+            pass
 
         for line in sql_text.split("\n"):
             stripped_line = line.strip()
@@ -254,6 +262,20 @@ class NetworkedClient:
         self.login: Optional[str] = None
         self.password: Optional[str] = None
 
+    @staticmethod
+    def encode_message(message: Union[list, dict]) -> bytes:
+        """Превращает объекты, преобразоваемые в JSON в байты."""
+        return dumps(
+            message,
+            separators=(",", ":"),
+            ensure_ascii=False
+        ).encode("utf8")
+
+    @staticmethod
+    def decode_message(message: bytes) -> Union[list, dict]:
+        """Превращает байты в объекты, преобразоваемые в JSON."""
+        return loads(message.decode("utf8"))
+
     def send(self, message: Union[list, dict]) -> None:
         """Отправляет сообщение клиенту.
 
@@ -261,7 +283,7 @@ class NetworkedClient:
             message:    Сообщение.
         """
         print("Отправлено клиенту:", message)
-        self.sock.sendto(dumps(message).encode("utf8"), self.addr)
+        self.sock.sendto(self.encode_message(message), self.addr)
 
     def receive(self, jdata: bytes) -> None:
         """Получает сообщение от клиента.
@@ -269,7 +291,7 @@ class NetworkedClient:
         Аргументы:
             jdata:  Данные от клиента.
         """
-        data = loads(jdata.decode("utf8"))
+        data = self.decode_message(jdata)
 
         print("Получено от клиента:", data)
 
@@ -338,6 +360,5 @@ if __name__ == "__main__":
             (1, 2, "Нормально");
     """, [f"А ты?{' ОЧЕНЬ ДЛИННАЯ СТРОКА!' * 20}"], noresult=True))
     print(dtb.sql("SELECT * FROM direct_messages;"))
-    # dtb.close()
 
     main()
