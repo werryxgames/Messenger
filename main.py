@@ -263,6 +263,8 @@ class MessengerClient:
 
                 offset += diff
 
+        cnv.configure(scrollregion=cnv.bbox("all"))
+
     def resize(self, event) -> None:
         """Обработчик изменения размера окна."""
         if event.height == self.last_height:
@@ -351,6 +353,53 @@ class MessengerClient:
                 for element in self.win.elements.values():
                     element.destroy()
 
+                frame = tk.Frame(background=self.MAIN_BACKGROUND)
+                self.win.place(
+                    "messages_frame",
+                    frame,
+                    relx=0.3,
+                    relw=0.7,
+                    relh=1
+                )
+                cnv = tk.Canvas(
+                    frame,
+                    background=self.MAIN_BACKGROUND,
+                    bd=0,
+                    highlightthickness=0
+                )
+                cnv_sbar = ttk.Scrollbar(frame)
+                self.win.place(
+                    "messages_scrollbar",
+                    cnv_sbar,
+                    relx=1,
+                    anchor=tk.NE,
+                    relh=1
+                )
+                cnv_sbar.configure(command=cnv.yview)
+                cnv.configure(yscrollcommand=cnv_sbar.set)
+                self.win.place(
+                    "messages",
+                    cnv,
+                    relw=1,
+                    relh=1,
+                    x=20,
+                    y=5,
+                    w=-40,
+                    h=-35
+                )
+                self.win.place(
+                    "messages_input",
+                    ttk.Entry(),
+                    x=15,
+                    relx=0.3,
+                    rely=1,
+                    anchor=tk.NW,
+                    relw=0.7,
+                    w=-85,
+                    y=-24,
+                    h=24
+                )
+
                 listbox = tk.Listbox(
                     bg=self.MAIN_BACKGROUND,
                     bd=0,
@@ -386,36 +435,6 @@ class MessengerClient:
                     relh=1
                 )
                 listbox.config(yscrollcommand=scrollbar.set)
-
-                cnv = tk.Canvas(
-                    background=self.MAIN_BACKGROUND,
-                    bd=0,
-                    highlightthickness=0
-                )
-                self.win.place(
-                    "messages",
-                    cnv,
-                    relx=0.3,
-                    x=20,
-                    relw=0.7,
-                    relh=1,
-                    anchor=tk.NW,
-                    y=5,
-                    w=-25,
-                    h=-40
-                )
-                self.win.place(
-                    "messages_input",
-                    ttk.Entry(),
-                    x=15,
-                    relx=0.3,
-                    rely=1,
-                    anchor=tk.NW,
-                    relw=0.7,
-                    w=-85,
-                    y=-24,
-                    h=24
-                )
 
                 for user in self._logins.values():
                     listbox.insert(tk.END, f" {user}")
