@@ -137,14 +137,14 @@ class Database:
             );
         """, noresult=True)
 
-    def create_account(self, name: str, password: str) -> int:
+    def create_account(self, name: str, password: str):
         """Создаёт аккаунт.
 
         Аргументы:
             name:       Логин аккаунта.
             password:   Пароль от аккаунта.
 
-        Возвращаемое значение:  Статус выполнения.
+        Возвращаемое значение:  Статус выполнения, id в случае успеха.
         """
         if len(name) < 1:
             return 1  # ERR_SHORT_NAME
@@ -165,16 +165,20 @@ class Database:
             [name, hashed_password]
         )
 
-        return 0  # SUCCESSFULL
+        # SUCCESSFULL
+        return [
+            0,
+            self.sql("SELECT id FROM users WHERE name = ?;", [name])[0][0]
+        ]
 
-    def login_account(self, name: str, password: str) -> int:
+    def login_account(self, name: str, password: str):
         """Входит в аккаунт.
 
         Аргументы:
             name:       Логин аккаунта.
             password:   Пароль от аккаунта.
 
-        Возвращаемое значение:  Статус выполнения.
+        Возвращаемое значение:  Статус выполнения, id в случае успеха.
         """
         if len(name) < 1:
             return 1  # ERR_SHORT_NAME
@@ -200,15 +204,23 @@ class Database:
         ):
             return 5  # ERR_INCORRECT_PASSWORD
 
-        return 0
+        # SUCCESSFULL
+        return [
+            0,
+            self.sql("SELECT id FROM users WHERE name = ?;", [name])[0][0]
+        ]
 
-    def get_account_data(self, name: str) -> tuple:
+    def get_account_data(self, name: str) -> (tuple, list):
         """Получает данные аккаунта.
 
         Аргументы:
             name:   Логин аккаунта.
 
-        Возвращаемое значение:  Отправленные и полученные сообщения.
+        Возвращаемое значение:
+            [
+                Отправленные и полученные сообщения,
+                ID пользователей, чей статус сообщений был изменён.
+            ].
         """
         account_id = self.sql("SELECT id FROM users WHERE name = ?;", [name])
 
@@ -243,7 +255,24 @@ class Database:
                 [uname]
             )[0][0]
 
-        return (sended, received, usernames_logins)
+        status_changed = self.sql("""
+            SELECT sender FROM direct_messages WHERE receiver = ? AND read = 0;
+        """, [account_id])
+
+        st_changed = []
+
+        for id_ in status_changed:
+            if id_[0] not in st_changed:
+                st_changed.append(id_[0])
+
+        if len(st_changed) > 0:
+            self.sql("""
+                UPDATE direct_messages \
+                SET read = 1 \
+                WHERE receiver = ? AND read = 0;
+            """, [account_id])
+
+        return ((sended, received, usernames_logins), st_changed)
 
     def send_message(self, login: str, receiver: int, message: str) -> bool:
         """Создаёт запись в базе данных о сообщении."""
@@ -270,6 +299,12 @@ class Database:
             VALUES (?, ?, ?);
         """, [sender_id, receiver, message], noresult=True)
 
+        self.sql("""
+            UPDATE direct_messages \
+            SET read = 2 \
+            WHERE receiver = ? AND sender = ? AND (read = 0 OR read = 1);
+        """, [sender_id, receiver])
+
         return result
 
     def close(self):
@@ -286,6 +321,7 @@ class NetworkedClient:
         self.sock: socket = sock
         self.addr = addr
         self._login = None
+        self.id_ = None
         self.__password = None
         self._instances.append(self)
 
@@ -317,7 +353,14 @@ class NetworkedClient:
         if self._login is None:
             return
 
-        self.send(["account_data", dtb.get_account_data(self._login)])
+        adata = dtb.get_account_data(self._login)
+
+        self.send(["account_data", adata[0]])
+
+        for receiver in adata[1]:
+            for inst in self._instances:
+                if inst.id_ == receiver:
+                    inst.send_account_data()
 
     def receive(self, jdata: bytes) -> None:
         """Получает сообщение от клиента.
@@ -333,13 +376,23 @@ class NetworkedClient:
         args = data[1:]
 
         if com == "register":
-            status = dtb.create_account(*args[:2])
+            result = dtb.create_account(*args[:2])
+
+            if isinstance(result, list):
+                status = result[0]
+                self.id_ = result[1]
+
             self.send(["register_status", status])
 
             if status == 0:
                 self._login, self.__password = args[:2]
         elif com == "login":
-            status = dtb.login_account(*args[:2])
+            result = dtb.login_account(*args[:2])
+
+            if isinstance(result, list):
+                status = result[0]
+                self.id_ = result[1]
+
             self.send(["login_status", status])
 
             if status == 0:
@@ -387,9 +440,9 @@ def main():
 
 if __name__ == "__main__":
     dtb.reset_database()
-    print(dtb.create_account("Werryx", "123456") == 0)
-    print(dtb.create_account("Werland", "123456") == 0)
-    print(dtb.create_account("zhbesluk", "123456") == 0)
+    print(len(dtb.create_account("Werryx", "123456")) > 1)
+    print(len(dtb.create_account("Werland", "123456")) > 1)
+    print(len(dtb.create_account("zhbesluk", "123456")) > 1)
     print(dtb.sql("""
         INSERT INTO direct_messages (sender, receiver, content) VALUES
             (2, 1, "Привет, я Werland"),

@@ -120,7 +120,7 @@ def test_reset_database():
     ("a" * 17, "", 2, []),
     ("Normal", "", 3, []),
     ("Test", "12345678", 4, [True]),
-    ("Account", "Pass12345678", 0, [
+    ("Account", "Pass12345678", [0, 1], [
         False,
         "Account",
         "7oyKAYIflTsuISbDt2Yb+SNVVvCiFOem"
@@ -156,7 +156,7 @@ def test_create_account(login, password, expected_result, add_data):
         "Account",
         "IncPass12345678"
     ]),
-    ("Account", "Pass12345678", 0, [
+    ("Account", "Pass12345678", [0, 1], [
         "Account",
         "Pass12345678"
     ]),
@@ -212,7 +212,7 @@ def test_get_account_data_not_exists(name):
         [1, 2, "Тест завершён."],
         [1, 3, "Ура."]
     ],
-        ([
+        (([
             (1, 1, "2, я 1.", 2, 0),
             (2, 1, "Привет, Test, я Account.", 3, 0),
             (6, 1, "Тест завершён.", 2, 0),
@@ -221,8 +221,9 @@ def test_get_account_data_not_exists(name):
             (3, 3, "Очень приятно.", 1, 0),
             (4, 3, "Я TestAccount.", 1, 0),
             (5, 2, "Понял.", 1, 0)
-        ], {2: "Account2", 3: "TestAcc"})
-    )
+        ], {2: "Account2", 3: "TestAcc"}),
+        [3, 2]
+    ))
 ])
 def test_get_account_data_exists(
     name,
