@@ -97,6 +97,7 @@ class MessengerClient:
         self._userid_selected: int = -1
         self.last_height: int = -1
         self._is_on_main_tab: bool = False
+        self.__temp_messages: list = []
 
         Thread(target=self.receive, daemon=True).start()
 
@@ -124,13 +125,27 @@ class MessengerClient:
 {' ' * (ceil(dmessage) + 1)}|")
         print("-" * (mlen + 4))
 
+    @staticmethod
+    def encode_message(message) -> bytes:
+        """Превращает объекты, преобразоваемые в JSON в байты."""
+        return dumps(
+            message,
+            separators=(",", ":"),
+            ensure_ascii=False
+        ).encode("utf8")
+
+    @staticmethod
+    def decode_message(message: bytes):
+        """Превращает байты в объекты, преобразоваемые в JSON."""
+        return loads(message.decode("utf8"))
+
     def send(self, message) -> None:
         """Отправляет сообщение message на сервер.
 
         Аргументы:
             message:    Сообщение.
         """
-        self._sock.send(dumps(message).encode("utf8"))
+        self._sock.send(self.encode_message(message))
 
     @staticmethod
     def create_round_rectangle(
@@ -230,6 +245,58 @@ class MessengerClient:
 
         offset = chg
 
+        for msg in self.__temp_messages[::-1]:
+            if msg[1] != self._userid_selected:
+                continue
+
+            text = cnv.create_text(
+                cwh - 5,
+                offset,
+                text=msg[0],
+                anchor=tk.NE,
+                fill=self.MESSAGE_FORE_COLOR,
+                font="Arial 16",
+                width=cwh - 20
+            )
+            bbox_text = cnv.bbox(text)
+
+            diff = bbox_text[1] - bbox_text[3] - 20
+            cnv.move(text, 0, diff)
+            text2 = cnv.create_text(
+                cwh - 5,
+                cnv.bbox(text)[3],
+                text="Отправлено",
+                anchor=tk.NE,
+                fill=self.MESSAGE_FORE_COLOR,
+                font="Arial 10",
+                width=cwh - 20
+            )
+            bbox_text = cnv.bbox(text)
+            bbox_text2 = cnv.bbox(text2)
+
+            text_bbox = [
+                min(bbox_text[0], bbox_text2[0]),
+                bbox_text[1],
+                bbox_text[2],
+                bbox_text2[3]
+            ]
+
+            rect = self.create_round_rectangle(
+                cnv,
+                text_bbox[0] - 5,
+                text_bbox[1] - 5,
+                text_bbox[2] + 5,
+                text_bbox[3] + 5,
+                15,
+                fill=self.MESSAGE_BACK_COLOR,
+                width=0,
+                ign1=True
+            )
+            cnv.tag_lower(rect)
+
+            offset += bbox_text[1] - bbox_text[3] + bbox_text2[1] - \
+                bbox_text2[3] - 20
+
         for msg in messages[::-1]:
             sended = msg[3] == self._userid_selected
 
@@ -243,11 +310,32 @@ class MessengerClient:
                 font="Arial 16",
                 width=cwh - 20
             )
-            text_bbox = cnv.bbox(text)
+            bbox_text = cnv.bbox(text)
 
-            diff = text_bbox[1] - text_bbox[3] - 20
+            diff = bbox_text[1] - bbox_text[3] - 20
             cnv.move(text, 0, diff)
-            text_bbox = cnv.bbox(text)
+
+            if sended:
+                text2 = cnv.create_text(
+                    cwh - 5,
+                    cnv.bbox(text)[3],
+                    text=["Доставлено", "Получено", "Прочитано"][msg[4]],
+                    anchor=tk.NE,
+                    fill=self.MESSAGE_FORE_COLOR,
+                    font="Arial 10",
+                    width=cwh - 20
+                )
+                bbox_text = cnv.bbox(text)
+                bbox_text2 = cnv.bbox(text2)
+
+                text_bbox = [
+                    min(bbox_text[0], bbox_text2[0]),
+                    bbox_text[1],
+                    bbox_text[2],
+                    bbox_text2[3]
+                ]
+            else:
+                text_bbox = cnv.bbox(text)
 
             rect = self.create_round_rectangle(
                 cnv,
@@ -264,7 +352,11 @@ class MessengerClient:
             )
             cnv.tag_lower(rect)
 
-            offset += diff
+            if sended:
+                offset += bbox_text[1] - bbox_text[3] + bbox_text2[1] - \
+                    bbox_text2[3] - 20
+            else:
+                offset += diff
 
         cnv.configure(scrollregion=cnv.bbox("all"))
 
@@ -294,15 +386,32 @@ class MessengerClient:
         if self._userid_selected == -1:
             return
 
+        message = message[:65535]
+
         self.win.messages_input.delete(0, tk.END)
-        self.send(["send_message", message[:65535], self._userid_selected])
-        self.send(["get_account_data"])
+        self.__temp_messages.append([message, self._userid_selected])
+
+        listbox = self.win.userlist
+
+        if self._userid_selected != -1:
+            listbox.select_set(
+                list(
+                    self._logins.keys()
+                ).index(str(self._userid_selected))
+            )
+            self._userid_selected = -1
+        else:
+            listbox.select_set(0)
+
+        listbox.event_generate("<<ListboxSelect>>")
+
+        self.send(["send_message", message, self._userid_selected])
 
     def receive(self) -> None:
         """Получает сообщения от сервера."""
         while True:
             jdata = self._sock.recv(70000)
-            data = loads(jdata.decode("utf8"))
+            data = self.decode_message(jdata)
             com = data[0]
 
             if com == "register_status":
@@ -475,9 +584,12 @@ class MessengerClient:
                     listbox.config(yscrollcommand=scrollbar.set)
                 else:
                     listbox = self.win.userlist
-
-                if main_tab:
                     listbox.delete(0, tk.END)
+
+                    for i, temp_msg in enumerate(self.__temp_messages):
+                        if temp_msg[0] == self.__sended[-1][2]:
+                            self.__temp_messages = self.__temp_messages[i + 1:]
+                            break
 
                 for user in self._logins.values():
                     listbox.insert(tk.END, f" {user}")

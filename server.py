@@ -243,6 +243,12 @@ class Database:
                 [uname]
             )[0][0]
 
+        self.sql("""
+            UPDATE direct_messages \
+            SET read = 1 \
+            WHERE receiver = ? AND read = 0;
+        """, [account_id])
+
         return (sended, received, usernames_logins)
 
     def send_message(self, login: str, receiver: int, message: str) -> bool:
@@ -269,6 +275,12 @@ class Database:
             INSERT INTO direct_messages (sender, receiver, content)
             VALUES (?, ?, ?);
         """, [sender_id, receiver, message], noresult=True)
+
+        self.sql("""
+            UPDATE direct_messages \
+            SET read = 2 \
+            WHERE receiver = ? AND sender = ? AND (read = 0 OR read = 1);
+        """, [sender_id, receiver])
 
         return result
 
@@ -373,6 +385,8 @@ def main():
                 adrdata = sock.recvfrom(70000)
             except (ConnectionResetError, ConnectionAbortedError):
                 pass
+
+            print(adrdata)
 
             data = adrdata[0]
             addr = adrdata[1]
