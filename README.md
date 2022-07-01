@@ -165,7 +165,7 @@ class Database:  # Класс базы данных
         Возвращаемое значение:  Статус выполнения, id в случае успеха
         """
 
-        def get_account_data(self, name: str) -> tuple[tuple[list[list[int, int, str, int, int], ...], list[list[int, int, str, int, int], ...]], list[int, ...]]  # Получает данные аккаунта
+    get_account_data(self, name: str) -> tuple[tuple[list[list[int, int, str, int, int], ...], list[list[int, int, str, int, int], ...]], list[int, ...]]  # Получает данные аккаунта
         """Аргументы:
             name:   Логин аккаунта
         Возвращаемое значение:
