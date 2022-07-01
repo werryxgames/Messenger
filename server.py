@@ -280,11 +280,14 @@ class Database:
 class NetworkedClient:
     """Класс клиента."""
 
+    _instances = []
+
     def __init__(self, sock: socket, addr) -> None:
         self.sock: socket = sock
         self.addr = addr
-        self.login = None
-        self.password = None
+        self._login = None
+        self.__password = None
+        self._instances.append(self)
 
     @staticmethod
     def encode_message(message) -> bytes:
@@ -309,6 +312,13 @@ class NetworkedClient:
         print("Отправлено клиенту:", message)
         self.sock.sendto(self.encode_message(message), self.addr)
 
+    def send_account_data(self) -> None:
+        """Отправляет данные об аккаунте."""
+        if self._login is None:
+            return
+
+        self.send(["account_data", dtb.get_account_data(self._login)])
+
     def receive(self, jdata: bytes) -> None:
         """Получает сообщение от клиента.
 
@@ -327,19 +337,22 @@ class NetworkedClient:
             self.send(["register_status", status])
 
             if status == 0:
-                self.login, self.password = args[:2]
+                self._login, self.__password = args[:2]
         elif com == "login":
             status = dtb.login_account(*args[:2])
             self.send(["login_status", status])
 
             if status == 0:
-                self.login, self.password = args[:2]
-        elif not (self.login is None and self.password is None):
+                self._login, self.__password = args[:2]
+        elif not (self._login is None and self.__password is None):
             if com == "get_account_data":
-                self.send(["account_data", dtb.get_account_data(self.login)])
+                self.send_account_data()
             elif com == "send_message":
                 msg = args[0][:65535]
-                dtb.send_message(self.login, args[1], msg)
+                dtb.send_message(self._login, args[1], msg)
+
+                for instance in self._instances:
+                    instance.send_account_data()
 
 
 dtb = Database(absolute("messenger.db"))
