@@ -294,8 +294,7 @@ class MessengerClient:
             )
             cnv.tag_lower(rect)
 
-            offset += bbox_text[1] - bbox_text[3] + bbox_text2[1] - \
-                bbox_text2[3] - 20
+            offset += diff
 
         for msg in messages[::-1]:
             sended = msg[3] == self._userid_selected
@@ -313,7 +312,6 @@ class MessengerClient:
             bbox_text = cnv.bbox(text)
 
             diff = bbox_text[1] - bbox_text[3] - 20
-            cnv.move(text, 0, diff)
 
             if sended:
                 text2 = cnv.create_text(
@@ -325,6 +323,15 @@ class MessengerClient:
                     font="Arial 10",
                     width=cwh - 20
                 )
+                bbox = cnv.bbox(text2)
+                diff += bbox[1] - bbox[3]
+
+            cnv.move(text, 0, diff)
+
+            if sended:
+                cnv.move(text2, 0, diff)
+
+            if sended:
                 bbox_text = cnv.bbox(text)
                 bbox_text2 = cnv.bbox(text2)
 
@@ -352,11 +359,7 @@ class MessengerClient:
             )
             cnv.tag_lower(rect)
 
-            if sended:
-                offset += bbox_text[1] - bbox_text[3] + bbox_text2[1] - \
-                    bbox_text2[3] - 20
-            else:
-                offset += diff
+            offset += diff
 
         cnv.configure(scrollregion=cnv.bbox("all"))
 
