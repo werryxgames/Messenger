@@ -15,7 +15,7 @@ PASSWORD_EXTRA_SALT = "Pu~w9cC+RV)Bfjnd1oSbLQhjwGP)mJ$R^%+DHp(u)LP@AgMq)dl&0T\
 (V$Thope)Q"
 
 
-def absolute(path_):
+def absolute(path_: str) -> str:
     """Возвращает абсолютный путь из относительного."""
     return path.normpath(path.join(
         path.dirname(path.realpath(__file__)),
@@ -307,7 +307,7 @@ class Database:
 
         return result
 
-    def close(self):
+    def close(self) -> None:
         """Закрывает базу данных."""
         self.__con.close()
 
@@ -339,7 +339,7 @@ class NetworkedClient:
         """Превращает байты в объекты, преобразоваемые в JSON."""
         return loads(message.decode("utf8"))
 
-    def send(self, message) -> None:
+    def send(self, message: list) -> None:
         """Отправляет сообщение клиенту.
 
         Аргументы:
@@ -411,7 +411,7 @@ class NetworkedClient:
 dtb = Database(absolute("messenger.db"))
 
 
-def main():
+def main() -> None:
     """Основная функция."""
     clients = {}
 
