@@ -116,7 +116,7 @@ python -m pytest tests
 ```
 
 ## Функции и классы
-### server.py
+### server.py - Модуль сервера
 ```python
 absolute(path_: str) -> str  # Возвращает абсолютный путь из относительного
 
@@ -134,8 +134,8 @@ class Database:  # Класс базы данных
             filepath:   Путь к базе данных
         """
 
-        # __con - Подключение к базе данных
-        # __cur - # Курсор базы данных для выполнения SQL
+        self.__con  # Подключение к базе данных
+        self.__cur  # Курсор базы данных для выполнения SQL
 
     sql(self, sql_text: str, format_: list[str | int | float, ...] = None, noresult: bool = False) -> bool | list | tuple  # Выполняет SQL код
         """Аргументы:
@@ -181,7 +181,7 @@ class Database:  # Класс базы данных
 
 
 class NetworkedClient:  # Класс клиента
-    # _instances - Все подключённые клиенты
+    _instances  # Все подключённые клиенты
 
     __init__(self, sock: socket.socket, addr: tuple[str, int]) -> None  # Инициализация клиента
         # sock - Сокет клиента
@@ -210,5 +210,113 @@ class NetworkedClient:  # Класс клиента
 main() -> None  # Основная функция
 ```
 
-### main.py
-**Пока-что нет документации**
+### main.py - Мессенджер на Python (клиент)
+```python
+class Window:  # Класс окна
+    __init__(self, tk_window: tkinter.Tk) -> None  # Инициализация окна
+        """Аргументы:
+            tk_window:  Окно Tkinter
+        """
+
+    place(self, id_: str, element, *args, **kwargs) -> None  # Размещает объект element
+        """Аргументы:
+            id_:        Уникальный идентификатор элемента
+            element:    Элемент, который необходимо разместить
+            *args:      Аргументы element.place()
+            **kwargs:   Позиционные аргументы element.place()
+        """
+
+    pack(self, id_: str, element, *args, **kwargs) -> None  # Размещает объект element
+        """Аргументы:
+            id_:        Уникальный идентификатор элемента
+            element:    Элемент, который необходимо разместить
+            *args:      Аргументы element.pack()
+            **kwargs:   Позиционные аргументы element.pack()
+        """
+
+    __getattribute__(self, id_: str)  # Получает элемент по его ID
+        """Аргументы:
+            id_:    Уникальный идентификатор элемента
+
+        Возвращаемое значение: Элемент
+        """
+
+
+class MessengerClient:  # Основной класс
+    MAIN_BACKGROUND  # Основной фон
+    SELECT_FOREGROUND  # Фон/цвет выбора
+    MAIN_FOREGROUND  # Основной цвет
+    SECOND_BACKGROUND  # Второй фон
+    THIRD_BACKGROUND  # Третий фон
+    MESSAGE_BACK_COLOR  # Фон сообщений пользователя
+    MESSAGE_FORE_COLOR  # Цвет сообщений пользователя
+    MESSAGE_BACK_COLOR2  # Фон других сообщений
+    MESSAGE_FORE_COLOR2  # Цвет других сообщений
+    _RECEIVE_SLEEP_TIME  # Задержка между получением сообщений от сервера
+
+    __init__(self) -> None  # Инициализация класса
+        self.root: tk.Tk  # Основное окно Tkinter
+        self.win: Window  # Окно Window
+        self._sock: socket.socket  # Сокет сервера
+        self.__sended: list[list[int, int, str, int, int], ...]  # Все отправленные сообщения
+        self.__received: list[list[int, int, str, int, int], ...]  # Все полученные сообщения
+        self._logins: dict{int: str}  # Логины пользователей
+        self._userid_selected: int  # ID выбранного пользователя
+        self.last_height: int  # Последняя высота окна
+        self._is_on_main_tab: bool  # На главной ли вкладке Messenger?
+        self.__temp_messages: list[list[str, int], ...]  # Сообщения со статусом "Отправлено"
+
+    show_error(title: str, message: str) -> None  # Показывает ошибку
+        """Аргументы:
+            title:      Заголовок ошибки
+            message:    Описание ошибки
+        """
+
+    encode_message(message) -> bytes  # Превращает объекты, преобразоваемые в JSON в байты
+
+    decode_message(message: bytes)  # Превращает байты в объекты, преобразоваемые в JSON
+
+    send(self, message) -> None  # Отправляет сообщение message на сервер
+        """Аргументы:
+            message:    Сообщение
+        """
+
+    create_round_rectangle(
+        cnv,
+        px1,
+        py1,
+        px2,
+        py2,
+        radius,
+        ign1=False,
+        ign2=False,
+        **kwargs
+    ) -> int  # Создаёт скруглённый прямоугольник
+        """Аргументы:
+            cnv:    Холст Tkinter
+            px1:    Левая точка прямоугольника
+            py1:    Верхняя точка прямоугольника
+            px2:    Правая точка прямоугольника
+            py2:    Нижняя точка прямоугольника
+            radius: Радиус скругления
+            kwargs: Дополнительные аргументы tkinter.Canvas.create_polygon()
+
+        Возвращаемое значение: ID Скруглённого прямоугольника на холсте
+        """
+
+    user_selected(self) -> None  # Обработчик события выбора пользователя
+        """Аргументы:
+            wid:    Виджет Listbox Tkinter
+        """
+
+    resize(self, event) -> None  # Обработчик изменения размера окна
+
+    send_message(self, message: str) -> None  # Отправляет сообщение на сервер
+        """Аргументы:
+            message:    Сообщение
+        """
+
+    receive(self) -> None  # Получает сообщения от сервера
+
+    main(self)  # Основная функция клиента
+```
