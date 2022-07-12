@@ -9,12 +9,17 @@ from socket import SOCK_DGRAM
 from socket import socket
 from sqlite3 import connect
 from threading import Thread
+from time import sleep
 from time import time
 
 from bcrypt import kdf
 
 PASSWORD_EXTRA_SALT = "Pu~w9cC+RV)Bfjnd1oSbLQhjwGP)mJ$R^%+DHp(u)LP@AgMq)dl&0T\
 (V$Thope)Q"
+IDLE_MAX_TIME = 10
+IDLE_SLEEP_TIME = 1
+
+clients = {}
 
 
 def absolute(path_: str) -> str:
@@ -381,13 +386,18 @@ class NetworkedClient:
                 if inst.id_ == receiver:
                     inst.send_account_data()
 
-    def receive(self, jdata: bytes) -> None:
+    def receive(self, jdata: bytes) -> bool:
         """Получает сообщение от клиента.
 
         Аргументы:
             jdata:  Данные от клиента.
+
+        Возвращаемое значаени: Надо ли обновлять таймер сообщений?
         """
         data = self.decode_message(jdata)
+
+        if data == ["client_alive"]:
+            return True
 
         print("Получено от клиента:", data)
 
@@ -416,6 +426,9 @@ class NetworkedClient:
 
             if status == 0:
                 self.login, self.__password = args[:2]
+        elif com == "disconnect":
+            self.close()
+            return False
         elif not (self.login is None and self.__password is None):
             if com == "get_account_data":
                 self.send_account_data()
@@ -434,20 +447,45 @@ class NetworkedClient:
                     self.send(["find_user_result", False])
                 else:
                     self.send(["find_user_result", dtb.find_user(args[0])])
+            else:
+                return False
+        elif com in ["get_account_data", "send_message", "find_user"]:
+            self.send(["not_logged"])
+            return False
+        else:
+            return False
+
+        return True
+
+    def close(self) -> None:
+        """Закрывает соединение с клиентом."""
+        del clients[self.addr]
 
 
 dtb = Database(absolute("messenger.db"))
 
 
 def check_idle() -> None:
-    """Отключает неактивных клиентов."""
-    pass
+    """Отключает неактивных клиентов.
+
+    Аргументы:
+        clients:    Словарь всех клиентов.
+    """
+    while True:
+        inactive_clients = []
+
+        for client in clients.values():
+            if client[1] < time() - IDLE_MAX_TIME:
+                inactive_clients.append(client[0])
+
+        for client in inactive_clients:
+            client.close()
+
+        sleep(IDLE_SLEEP_TIME)
 
 
 def main() -> None:
     """Основная функция."""
-    clients = {}
-
     sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind(("0.0.0.0", 7505))
 
@@ -466,11 +504,10 @@ def main() -> None:
             addr = adrdata[1]
 
             if addr not in clients:
-                clients[addr] = [NetworkedClient(sock, addr), None]
+                clients[addr] = [NetworkedClient(sock, addr), time() - IDLE_MAX_TIME + 5]
 
-            clients[addr][1] = time()
-
-            clients[addr][0].receive(data)
+            if clients[addr][0].receive(data):
+                clients[addr][1] = time()
 
     dtb.close()
 

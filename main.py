@@ -57,6 +57,13 @@ class Window:
         self.elements[id_] = element
         element.pack(*args, **kwargs)
 
+    def clear(self) -> None:
+        """Очищает все элементы."""
+        for child in self.tk_window.winfo_children():
+            child.destroy()
+
+        self.elements = {}
+
     def __getattribute__(self, id_: str):
         """Получает элемент по его ID.
 
@@ -65,7 +72,7 @@ class Window:
 
         Возвращаемое значение: Элемент.
         """
-        if id_ in ["pack", "place", "tk_window", "elements"]:
+        if id_ in ["pack", "place", "tk_window", "elements", "clear"]:
             return object.__getattribute__(self, id_)
 
         return object.__getattribute__(self, "elements")[id_]
@@ -665,43 +672,41 @@ class MessengerClient:
                     listbox.select_clear(0)
                     listbox.select_set(len(self._logins) - 1)
                     listbox.event_generate("<<ListboxSelect>>")
+            elif com == "not_logged":
+                if self._userid_selected == -1:
+                    self.show_error(
+                        "Требуется вход",
+                        "Для совершения этой операции требуется вход в аккаунт"
+                    )
+                else:
+                    self.login_tab()
+                    self.show_error(
+                        "Вы вышли из аккаунта",
+                        "Требуется заново войти в аккаунт для совершения этой \
+операции"
+                    )
 
             sleep(self._RECEIVE_SLEEP_TIME)
 
     def send_idle(self) -> None:
         """Отправляет сообщение серверу о том, что клиент до сих пор открыт."""
         while True:
-            if self._userid_selected != -1:
+            if self._is_on_main_tab:
                 self.send(["client_alive"])
 
             sleep(self._IDLE_SLEEP_TIME)
 
-    def main(self):
-        """Основная функция клиента."""
-        self.root = tk.Tk()
-        self.root.wm_title("Messenger")
-        self.root.wm_geometry("1000x600")
-        self.win = Window(self.root)
+    def login_tab(self, clear=True) -> None:
+        """Перемещает на начальную вкладку."""
+        self.__sended = []
+        self.__received = []
+        self._logins = {}
+        self._userid_selected = -1
+        self._is_on_main_tab = False
+        self.__temp_messages = []
 
-        self.last_height = self.root.winfo_height()
-
-        style = ttk.Style(self.root)
-        style.theme_use("clam")
-        self.root.configure(bg=self.MAIN_BACKGROUND)
-        style.configure(
-            "TLabel",
-            background=self.MAIN_BACKGROUND,
-            foreground=self.MAIN_FOREGROUND
-        )
-        style.configure(
-            "TEntry",
-            background=self.MAIN_BACKGROUND
-        )
-        style.configure(
-            "TButton",
-            background=self.SECOND_BACKGROUND,
-            activebackground=self.THIRD_BACKGROUND
-        )
+        if clear:
+            self.win.clear()
 
         self.win.place(
             "loadscreen_registration",
@@ -775,6 +780,42 @@ class MessengerClient:
             y=-12,
             x=-12
         )
+
+    def on_destroy(self):
+        """Обработчик выхода из приложения."""
+        self.send(["disconnect"])
+        self.root.destroy()
+
+    def main(self):
+        """Основная функция клиента."""
+        self.root = tk.Tk()
+        self.root.wm_title("Messenger")
+        self.root.wm_geometry("1000x600")
+        self.win = Window(self.root)
+
+        self.last_height = self.root.winfo_height()
+
+        style = ttk.Style(self.root)
+        style.theme_use("clam")
+        self.root.configure(bg=self.MAIN_BACKGROUND)
+        style.configure(
+            "TLabel",
+            background=self.MAIN_BACKGROUND,
+            foreground=self.MAIN_FOREGROUND
+        )
+        style.configure(
+            "TEntry",
+            background=self.MAIN_BACKGROUND
+        )
+        style.configure(
+            "TButton",
+            background=self.SECOND_BACKGROUND,
+            activebackground=self.THIRD_BACKGROUND
+        )
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_destroy)
+
+        self.login_tab(False)
 
         self.root.mainloop()
 
