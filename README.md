@@ -316,6 +316,11 @@ class MessengerClient:  # Основной класс
             message:    Сообщение
         """
 
+    add_user(self, username: str) -> None  # Добавляет пользователя по имени
+        """Аргументы:
+            username:   Имя пользователя
+        """
+
     receive(self) -> None  # Получает сообщения от сервера
 
     main(self)  # Основная функция клиента
