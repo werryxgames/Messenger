@@ -1,1 +1,2 @@
-bcrypt>=3.2.2
+bcrypt
+pycryptodome

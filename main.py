@@ -3,6 +3,7 @@
 
 import tkinter as tk
 
+from json import JSONDecodeError
 from json import dumps
 from json import loads
 from math import ceil
@@ -13,6 +14,10 @@ from socket import socket
 from threading import Thread
 from time import sleep
 from tkinter import ttk
+
+from aes_crypto import acrypt
+
+KEY_EXTRA = "LX@$wmd3l8Yt9zxj9WH8yp@DOzNrDk2^flJzzNU!%oYy3EUoXabyGF~k%5TiJBH*"
 
 
 class Window:
@@ -106,9 +111,13 @@ class MessengerClient:
         self.last_height: int = -1
         self._is_on_main_tab: bool = False
         self.__temp_messages: list = []
+        self.__key = None
+        self.__aes = None
 
         Thread(target=self.receive, daemon=True).start()
         Thread(target=self.send_idle, daemon=True).start()
+
+        self._sock.send(b"\x05\x03\xff\x01")
 
         self.main()
 
@@ -134,19 +143,22 @@ class MessengerClient:
 {' ' * (ceil(dmessage) + 1)}|")
         print("-" * (mlen + 4))
 
-    @staticmethod
-    def encode_message(message) -> bytes:
+    def __encode_message(self, message) -> bytes:
         """Превращает объекты, преобразоваемые в JSON в байты."""
-        return dumps(
+        return self.__aes.encrypt(dumps(
             message,
             separators=(",", ":"),
             ensure_ascii=False
-        ).encode("utf8")
+        ))
 
-    @staticmethod
-    def decode_message(message: bytes):
+    def __decode_message(self, message: bytes):
         """Превращает байты в объекты, преобразоваемые в JSON."""
-        return loads(message.decode("utf8"))
+        if self.__key is None:
+            self.__key = message.decode("ascii")
+            self.__aes = acrypt(KEY_EXTRA + self.__key)
+            return False
+
+        return loads(self.__aes.decrypt(message))
 
     def send(self, message) -> None:
         """Отправляет сообщение message на сервер.
@@ -154,7 +166,7 @@ class MessengerClient:
         Аргументы:
             message:    Сообщение.
         """
-        self._sock.send(self.encode_message(message))
+        self._sock.send(self.__encode_message(message))
 
     @staticmethod
     def create_round_rectangle(
@@ -439,7 +451,11 @@ class MessengerClient:
         """Получает сообщения от сервера."""
         while True:
             jdata = self._sock.recv(70000)
-            data = self.decode_message(jdata)
+            data = self.__decode_message(jdata)
+
+            if data is False:
+                continue
+
             com = data[0]
 
             if com == "register_status":
@@ -690,10 +706,8 @@ class MessengerClient:
     def send_idle(self) -> None:
         """Отправляет сообщение серверу о том, что клиент до сих пор открыт."""
         while True:
-            if self._is_on_main_tab:
-                self.send(["client_alive"])
-
             sleep(self._IDLE_SLEEP_TIME)
+            self.send(["client_alive"])
 
     def login_tab(self, clear=True) -> None:
         """Перемещает на начальную вкладку."""

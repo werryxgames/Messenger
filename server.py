@@ -4,18 +4,23 @@ from hashlib import sha256
 from json import dumps
 from json import loads
 from os import path
+from random import choice
 from socket import AF_INET
 from socket import SOCK_DGRAM
 from socket import socket
 from sqlite3 import connect
+from string import ascii_letters
+from string import digits
 from threading import Thread
 from time import sleep
 from time import time
 
+from aes_crypto import acrypt
 from bcrypt import kdf
 
 PASSWORD_EXTRA_SALT = "Pu~w9cC+RV)Bfjnd1oSbLQhjwGP)mJ$R^%+DHp(u)LP@AgMq)dl&0T\
 (V$Thope)Q"
+KEY_EXTRA = "LX@$wmd3l8Yt9zxj9WH8yp@DOzNrDk2^flJzzNU!%oYy3EUoXabyGF~k%5TiJBH*"
 IDLE_MAX_TIME = 10
 IDLE_SLEEP_TIME = 1
 
@@ -341,27 +346,27 @@ class NetworkedClient:
 
     _instances = []
 
-    def __init__(self, sock: socket, addr) -> None:
+    def __init__(self, sock: socket, addr, key: str) -> None:
         self.sock: socket = sock
         self.addr = addr
         self.login = None
         self.id_ = None
         self.__password = None
+        self.__key = key
+        self.__aes = acrypt(KEY_EXTRA + self.__key)
         self._instances.append(self)
 
-    @staticmethod
-    def encode_message(message) -> bytes:
+    def __encode_message(self, message) -> bytes:
         """Превращает объекты, преобразоваемые в JSON в байты."""
-        return dumps(
+        return self.__aes.encrypt(dumps(
             message,
             separators=(",", ":"),
             ensure_ascii=False
-        ).encode("utf8")
+        ))
 
-    @staticmethod
-    def decode_message(message: bytes):
+    def __decode_message(self, message: bytes):
         """Превращает байты в объекты, преобразоваемые в JSON."""
-        return loads(message.decode("utf8"))
+        return loads(self.__aes.decrypt(message))
 
     def send(self, message: list) -> None:
         """Отправляет сообщение клиенту.
@@ -370,7 +375,8 @@ class NetworkedClient:
             message:    Сообщение.
         """
         print("Отправлено клиенту:", message)
-        self.sock.sendto(self.encode_message(message), self.addr)
+        encoded = self.__encode_message(message)
+        self.sock.sendto(encoded, self.addr)
 
     def send_account_data(self) -> None:
         """Отправляет данные об аккаунте."""
@@ -394,7 +400,7 @@ class NetworkedClient:
 
         Возвращаемое значаени: Надо ли обновлять таймер сообщений?
         """
-        data = self.decode_message(jdata)
+        data = self.__decode_message(jdata)
 
         if data == ["client_alive"]:
             return True
@@ -502,15 +508,26 @@ def main() -> None:
 
             data = adrdata[0]
             addr = adrdata[1]
+            key = None
+
+            print("<", data)
 
             if addr not in clients:
+                key = "".join(
+            [choice(ascii_letters + digits) for _ in range(64)]
+                             )
                 clients[addr] = [
-                    NetworkedClient(sock, addr),
+                    NetworkedClient(sock, addr, key),
                     time() - IDLE_MAX_TIME + 5
                 ]
 
-            if clients[addr][0].receive(data):
-                clients[addr][1] = time()
+                if data == b"\x05\x03\xff\x01":
+                    key = key.encode("ascii")
+                    sock.sendto(key, addr)
+                    key = None
+            else:
+                if clients[addr][0].receive(data):
+                    clients[addr][1] = time()
 
     dtb.close()
 
