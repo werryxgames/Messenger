@@ -601,11 +601,10 @@ class MessengerClient:
                     )
                     self.win.place(
                         "add_user_button",
-                        ttk.Button(text="+", command=
-                            lambda: self.add_user(
-                                self.win.add_user_name.get()
-                            )
-                        ),
+                        ttk.Button(text="+", command=lambda:
+                                        self.add_user(
+                                            self.win.add_user_name.get())
+                                   ),
                         relx=0.3,
                         x=-35,
                         w=30,

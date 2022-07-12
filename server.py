@@ -504,7 +504,10 @@ def main() -> None:
             addr = adrdata[1]
 
             if addr not in clients:
-                clients[addr] = [NetworkedClient(sock, addr), time() - IDLE_MAX_TIME + 5]
+                clients[addr] = [
+                    NetworkedClient(sock, addr),
+                    time() - IDLE_MAX_TIME + 5
+                ]
 
             if clients[addr][0].receive(data):
                 clients[addr][1] = time()
