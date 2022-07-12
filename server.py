@@ -8,11 +8,18 @@ from socket import AF_INET
 from socket import SOCK_DGRAM
 from socket import socket
 from sqlite3 import connect
+from threading import Thread
+from time import sleep
+from time import time
 
 from bcrypt import kdf
 
 PASSWORD_EXTRA_SALT = "Pu~w9cC+RV)Bfjnd1oSbLQhjwGP)mJ$R^%+DHp(u)LP@AgMq)dl&0T\
 (V$Thope)Q"
+IDLE_MAX_TIME = 10
+IDLE_SLEEP_TIME = 1
+
+clients = {}
 
 
 def absolute(path_: str) -> str:
@@ -307,6 +314,23 @@ class Database:
 
         return result
 
+    def find_user(self, username: str):
+        """Ищет пользователя по username.
+
+        Аргументы:
+            username:   Имя пользователя.
+
+        Возвращаемое значение:
+            False:          Пользователь не найден.
+            list[int, str]: ID пользователя и его имя.
+        """
+        result = self.sql("SELECT id FROM users WHERE name = ?;", [username])
+
+        if len(result) == 0:
+            return False
+
+        return [result[0][0], username]
+
     def close(self) -> None:
         """Закрывает базу данных."""
         self.__con.close()
@@ -320,7 +344,7 @@ class NetworkedClient:
     def __init__(self, sock: socket, addr) -> None:
         self.sock: socket = sock
         self.addr = addr
-        self._login = None
+        self.login = None
         self.id_ = None
         self.__password = None
         self._instances.append(self)
@@ -350,10 +374,10 @@ class NetworkedClient:
 
     def send_account_data(self) -> None:
         """Отправляет данные об аккаунте."""
-        if self._login is None:
+        if self.login is None:
             return
 
-        adata = dtb.get_account_data(self._login)
+        adata = dtb.get_account_data(self.login)
 
         self.send(["account_data", adata[0]])
 
@@ -362,13 +386,18 @@ class NetworkedClient:
                 if inst.id_ == receiver:
                     inst.send_account_data()
 
-    def receive(self, jdata: bytes) -> None:
+    def receive(self, jdata: bytes) -> bool:
         """Получает сообщение от клиента.
 
         Аргументы:
             jdata:  Данные от клиента.
+
+        Возвращаемое значаени: Надо ли обновлять таймер сообщений?
         """
         data = self.decode_message(jdata)
+
+        if data == ["client_alive"]:
+            return True
 
         print("Получено от клиента:", data)
 
@@ -385,7 +414,7 @@ class NetworkedClient:
             self.send(["register_status", status])
 
             if status == 0:
-                self._login, self.__password = args[:2]
+                self.login, self.__password = args[:2]
         elif com == "login":
             result = dtb.login_account(*args[:2])
 
@@ -396,44 +425,92 @@ class NetworkedClient:
             self.send(["login_status", status])
 
             if status == 0:
-                self._login, self.__password = args[:2]
-        elif not (self._login is None and self.__password is None):
+                self.login, self.__password = args[:2]
+        elif com == "disconnect":
+            self.close()
+            return False
+        elif not (self.login is None and self.__password is None):
             if com == "get_account_data":
                 self.send_account_data()
             elif com == "send_message":
                 msg = args[0][:65535]
-                dtb.send_message(self._login, args[1], msg)
+                dtb.send_message(self.login, args[1], msg)
+
+                self.send_account_data()
 
                 for instance in self._instances:
-                    instance.send_account_data()
+                    if args[1] == instance.login:
+                        instance.send_account_data()
+                        break
+            elif com == "find_user":
+                if args[0] == self.login:
+                    self.send(["find_user_result", False])
+                else:
+                    self.send(["find_user_result", dtb.find_user(args[0])])
+            else:
+                return False
+        elif com in ["get_account_data", "send_message", "find_user"]:
+            self.send(["not_logged"])
+            return False
+        else:
+            return False
+
+        return True
+
+    def close(self) -> None:
+        """Закрывает соединение с клиентом."""
+        del clients[self.addr]
 
 
 dtb = Database(absolute("messenger.db"))
 
 
+def check_idle() -> None:
+    """Отключает неактивных клиентов.
+
+    Аргументы:
+        clients:    Словарь всех клиентов.
+    """
+    while True:
+        inactive_clients = []
+
+        for client in clients.values():
+            if client[1] < time() - IDLE_MAX_TIME:
+                inactive_clients.append(client[0])
+
+        for client in inactive_clients:
+            client.close()
+
+        sleep(IDLE_SLEEP_TIME)
+
+
 def main() -> None:
     """Основная функция."""
-    clients = {}
-
     sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind(("0.0.0.0", 7505))
 
     print("Сервер запущен")
+
+    Thread(target=check_idle, daemon=True).start()
 
     with sock:
         while True:
             try:
                 adrdata = sock.recvfrom(70000)
             except (ConnectionResetError, ConnectionAbortedError):
-                pass
+                continue
 
             data = adrdata[0]
             addr = adrdata[1]
 
             if addr not in clients:
-                clients[addr] = NetworkedClient(sock, addr)
+                clients[addr] = [
+                    NetworkedClient(sock, addr),
+                    time() - IDLE_MAX_TIME + 5
+                ]
 
-            clients[addr].receive(data)
+            if clients[addr][0].receive(data):
+                clients[addr][1] = time()
 
     dtb.close()
 
@@ -443,6 +520,7 @@ if __name__ == "__main__":
     print(len(dtb.create_account("Werryx", "123456")) > 1)
     print(len(dtb.create_account("Werland", "123456")) > 1)
     print(len(dtb.create_account("zhbesluk", "123456")) > 1)
+    print(len(dtb.create_account("WTest", "123456")) > 1)
     print(dtb.sql("""
         INSERT INTO direct_messages (sender, receiver, content) VALUES
             (2, 1, "Привет, я Werland"),
@@ -450,7 +528,8 @@ if __name__ == "__main__":
             (1, 2, "Я - Werryx"),
             (2, 1, "Как дела?"),
             (3, 1, "Помнишь?"),
-            (1, 2, "Нормально");
+            (1, 2, "Нормально"),
+            (4, 1, "TEST");
     """, [f"А ты?{' ОЧЕНЬ ДЛИННАЯ СТРОКА!' * 20}"], noresult=True))
     print(dtb.sql("SELECT * FROM direct_messages;"))
 

@@ -116,172 +116,243 @@ python -m pytest tests
 ```
 
 ## Функции и классы
-### server.py - Модуль сервера
-```python
-absolute(path_: str) -> str  # Возвращает абсолютный путь из относительного
+### server.py - Модуль сервера.
+#### Зависимости: bcrypt
 
-encrypt_password(user_id: int, password: str) -> str  # Шифрует пароль
-    """Аргументы:
-        user_id:    ID пользователя (используется как соль)
-        password:   Пароль пользователя
-    Возвращаемое значение:  Зашифрованный пароль
+```python
+def absolute(path_: str) -> str:
+    """Возвращает абсолютный путь из относительного."""
+
+
+def encrypt_password(user_id: int, password: str) -> str:
+    """Шифрует пароль.
+
+    Аргументы:
+        user_id:    ID пользователя.
+        password:   Пароль пользователя.
+
+    Возвращаемое значение:  Зашифрованный пароль.
     """
 
 
-class Database:  # Класс базы данных
-    __init__(self, filepath: str) -> None  # Инициализация базы данных
-        """Аргументы:
-            filepath:   Путь к базе данных
+class Database:
+    """Класс базы данных."""
+
+    def __init__(self, filepath: str) -> None:
+        """Инициализация базы данных.
+
+        Аргументы:
+            filepath:   Путь к базе данных.
         """
 
-        self.__con  # Подключение к базе данных
-        self.__cur  # Курсор базы данных для выполнения SQL
+    def sql(
+        self,
+        sql_text: str,
+        format_=None,
+        noresult: bool = False
+    ):
+        """Выполняет SQL код.
 
-    sql(self, sql_text: str, format_: list[str | int | float, ...] = None, noresult: bool = False) -> bool | list | tuple  # Выполняет SQL код
-        """Аргументы:
-            sql_text:   SQL код
-            format_:    Заменители '?' в SQL коде
-            noresult:   Если включено, то результатом будет булевое значение
+        Аргументы:
+            sql_text:   SQL код.
+            format_:    Заменители '?' в SQL коде.
+            noresult:   Если включено, то результатом будет булевое значение.
+
         Возвращаемое значение:
-            bool:   Если включено noresult, возвращает True, если результат выполнения SQL кода пустой, иначе False
-            list:   Массив с результатами
-            tuple:  Единственный результат
+            bool:   Если включено noresult, возвращает True, если результат
+                        выполнения SQL кода пустой, иначе False.
+            list:   Массив с результатами.
+            tuple:  Единственный результат.
         """
 
-    reset_database(self) -> bool  # Сбрасывает базу данных к начальному состоянию
-        """Возвращаемое значение: True, если удалось сбросить, иначе False"""
+    def reset_database(self) -> bool:
+        """Сбрасывает базу данных к начальному состоянию.
 
-    create_account(self, name: str, password: str) -> int | list[int, list[int, ...]]  # Создаёт аккаунт
-        """Аргументы:
-            name:       Логин аккаунта
-            password:   Пароль от аккаунта
-        Возвращаемое значение:  Статус выполнения, id в случае успеха
+        Возвращаемое значение: True, если удалось сбросить, иначе False.
         """
 
-    login_account(self, name: str, password: str) -> int | list[int, list[int, ...]]  # Входит в аккаунт
-        """Аргументы:
-            name:       Логин аккаунта
-            password:   Пароль от аккаунта
-        Возвращаемое значение:  Статус выполнения, id в случае успеха
+    def create_account(self, name: str, password: str):
+        """Создаёт аккаунт.
+
+        Аргументы:
+            name:       Логин аккаунта.
+            password:   Пароль от аккаунта.
+
+        Возвращаемое значение:  Статус выполнения, id в случае успеха.
         """
 
-    get_account_data(self, name: str) -> tuple[tuple[list[list[int, int, str, int, int], ...], list[list[int, int, str, int, int], ...]], list[int, ...]]  # Получает данные аккаунта
-        """Аргументы:
-            name:   Логин аккаунта
+    def login_account(self, name: str, password: str):
+        """Входит в аккаунт.
+
+        Аргументы:
+            name:       Логин аккаунта.
+            password:   Пароль от аккаунта.
+
+        Возвращаемое значение:  Статус выполнения, id в случае успеха.
+        """
+
+    def get_account_data(self, name: str) -> (tuple, list):
+        """Получает данные аккаунта.
+
+        Аргументы:
+            name:   Логин аккаунта.
+
         Возвращаемое значение:
             [
                 Отправленные и полученные сообщения,
-                ID пользователей, чей статус сообщений был изменён
-            ]
+                ID пользователей, чей статус сообщений был изменён.
+            ].
         """
 
-    send_message(self, login: str, receiver: int, message: str) -> bool  # Создаёт запись в базе данных о сообщении
+    def send_message(self, login: str, receiver: int, message: str) -> bool:
+        """Создаёт запись в базе данных о сообщении."""
 
-    close(self) -> None  # Закрывает базу данных
+    def find_user(self, username: str):
+        """Ищет пользователя по username.
 
+        Аргументы:
+            username:   Имя пользователя.
 
-class NetworkedClient:  # Класс клиента
-    _instances  # Все подключённые клиенты
-
-    __init__(self, sock: socket.socket, addr: tuple[str, int]) -> None  # Инициализация клиента
-        # sock - Сокет клиента
-        # addr - Адрес клиента
-        # _login - Логин клиента
-        # id_ - ID клиента
-        # __password - Пароль клиента
-
-    encode_message(message: list | dict) -> bytes  # Превращает объекты, преобразоваемые в JSON в байты
-
-    decode_message(message: bytes) -> list | dict  # Превращает байты в объекты, преобразоваемые в JSON
-
-    send(self, message: list) -> None  # Отправляет сообщение клиенту
-        """Аргументы:
-            message:    Сообщение
+        Возвращаемое значение:
+            False:          Пользователь не найден.
+            list[int, str]: ID пользователя и его имя.
         """
 
-    send_account_data(self) -> None  # Отправляет данные об аккаунте
+    def close(self) -> None:
+        """Закрывает базу данных."""
 
-    receive(self, jdata: bytes) -> None  # Получает сообщение от клиента
-        """Аргументы:
-            jdata:  Данные от клиента
+
+class NetworkedClient:
+    """Класс клиента."""
+
+    _instances = []
+
+    def __init__(self, sock: socket, addr) -> None:
+        pass
+
+    @staticmethod
+    def encode_message(message) -> bytes:
+        """Превращает объекты, преобразоваемые в JSON в байты."""
+
+    @staticmethod
+    def decode_message(message: bytes):
+        """Превращает байты в объекты, преобразоваемые в JSON."""
+
+    def send(self, message: list) -> None:
+        """Отправляет сообщение клиенту.
+
+        Аргументы:
+            message:    Сообщение.
         """
 
+    def send_account_data(self) -> None:
+        """Отправляет данные об аккаунте."""
 
-main() -> None  # Основная функция
+    def receive(self, jdata: bytes) -> bool:
+        """Получает сообщение от клиента.
+
+        Аргументы:
+            jdata:  Данные от клиента.
+
+        Возвращаемое значаени: Надо ли обновлять таймер сообщений?
+        """
+
+    def close(self) -> None:
+        """Закрывает соединение с клиентом."""
+
+
+def check_idle() -> None:
+    """Отключает неактивных клиентов.
+
+    Аргументы:
+        clients:    Словарь всех клиентов.
+    """
+
+
+def main() -> None:
+    """Основная функция."""
+
 ```
 
-### main.py - Мессенджер на Python (клиент)
+### main.py - Мессенджер на Python (клиент).
+#### Нет зависимостей
+
 ```python
-class Window:  # Класс окна
-    __init__(self, tk_window: tkinter.Tk) -> None  # Инициализация окна
-        """Аргументы:
-            tk_window:  Окно Tkinter
+class Window:
+    """Класс окна."""
+
+    def __init__(self, tk_window: tk.Tk) -> None:
+        """Инициализация окна.
+
+        Аргументы:
+            tk_window:  Окно Tkinter.
         """
 
-    place(self, id_: str, element, *args, **kwargs) -> None  # Размещает объект element
-        """Аргументы:
-            id_:        Уникальный идентификатор элемента
-            element:    Элемент, который необходимо разместить
-            *args:      Аргументы element.place()
-            **kwargs:   Позиционные аргументы element.place()
+    def place(self, id_: str, element, *args, **kwargs) -> None:
+        """Размещает объект element.
+
+        Аргументы:
+            id_:        Уникальный идентификатор элемента.
+            element:    Элемент, который необходимо разместить.
+            *args:      Аргументы element.place().
+            **kwargs:   Позиционные аргументы element.place().
         """
 
-    pack(self, id_: str, element, *args, **kwargs) -> None  # Размещает объект element
-        """Аргументы:
-            id_:        Уникальный идентификатор элемента
-            element:    Элемент, который необходимо разместить
-            *args:      Аргументы element.pack()
-            **kwargs:   Позиционные аргументы element.pack()
+    def pack(self, id_: str, element, *args, **kwargs) -> None:
+        """Размещает объект element.
+
+        Аргументы:
+            id_:        Уникальный идентификатор элемента.
+            element:    Элемент, который необходимо разместить.
+            *args:      Аргументы element.pack().
+            **kwargs:   Позиционные аргументы element.pack().
         """
 
-    __getattribute__(self, id_: str)  # Получает элемент по его ID
-        """Аргументы:
-            id_:    Уникальный идентификатор элемента
+    def clear(self) -> None:
+        """Очищает все элементы."""
 
-        Возвращаемое значение: Элемент
+    def __getattribute__(self, id_: str):
+        """Получает элемент по его ID.
+
+        Аргументы:
+            id_:    Уникальный идентификатор элемента.
+
+        Возвращаемое значение: Элемент.
         """
 
 
-class MessengerClient:  # Основной класс
-    MAIN_BACKGROUND  # Основной фон
-    SELECT_FOREGROUND  # Фон/цвет выбора
-    MAIN_FOREGROUND  # Основной цвет
-    SECOND_BACKGROUND  # Второй фон
-    THIRD_BACKGROUND  # Третий фон
-    MESSAGE_BACK_COLOR  # Фон сообщений пользователя
-    MESSAGE_FORE_COLOR  # Цвет сообщений пользователя
-    MESSAGE_BACK_COLOR2  # Фон других сообщений
-    MESSAGE_FORE_COLOR2  # Цвет других сообщений
-    _RECEIVE_SLEEP_TIME  # Задержка между получением сообщений от сервера
+class MessengerClient:
+    """Основной класс."""
 
-    __init__(self) -> None  # Инициализация класса
-        self.root: tk.Tk  # Основное окно Tkinter
-        self.win: Window  # Окно Window
-        self._sock: socket.socket  # Сокет сервера
-        self.__sended: list[list[int, int, str, int, int], ...]  # Все отправленные сообщения
-        self.__received: list[list[int, int, str, int, int], ...]  # Все полученные сообщения
-        self._logins: dict{int: str}  # Логины пользователей
-        self._userid_selected: int  # ID выбранного пользователя
-        self.last_height: int  # Последняя высота окна
-        self._is_on_main_tab: bool  # На главной ли вкладке Messenger?
-        self.__temp_messages: list[list[str, int], ...]  # Сообщения со статусом "Отправлено"
+    def __init__(self) -> None:
+        """Инициализация класса."""
 
-    show_error(title: str, message: str) -> None  # Показывает ошибку
-        """Аргументы:
-            title:      Заголовок ошибки
-            message:    Описание ошибки
+    @staticmethod
+    def show_error(title: str, message: str) -> None:
+        """Показывает ошибку.
+
+        Аргументы:
+            title:      Заголовок ошибки.
+            message:    Описание ошибки.
         """
 
-    encode_message(message) -> bytes  # Превращает объекты, преобразоваемые в JSON в байты
+    @staticmethod
+    def encode_message(message) -> bytes:
+        """Превращает объекты, преобразоваемые в JSON в байты."""
 
-    decode_message(message: bytes)  # Превращает байты в объекты, преобразоваемые в JSON
+    @staticmethod
+    def decode_message(message: bytes):
+        """Превращает байты в объекты, преобразоваемые в JSON."""
 
-    send(self, message) -> None  # Отправляет сообщение message на сервер
-        """Аргументы:
-            message:    Сообщение
+    def send(self, message) -> None:
+        """Отправляет сообщение message на сервер.
+
+        Аргументы:
+            message:    Сообщение.
         """
 
-    create_round_rectangle(
+    @staticmethod
+    def create_round_rectangle(
         cnv,
         px1,
         py1,
@@ -291,32 +362,58 @@ class MessengerClient:  # Основной класс
         ign1=False,
         ign2=False,
         **kwargs
-    ) -> int  # Создаёт скруглённый прямоугольник
-        """Аргументы:
-            cnv:    Холст Tkinter
-            px1:    Левая точка прямоугольника
-            py1:    Верхняя точка прямоугольника
-            px2:    Правая точка прямоугольника
-            py2:    Нижняя точка прямоугольника
-            radius: Радиус скругления
-            kwargs: Дополнительные аргументы tkinter.Canvas.create_polygon()
+    ) -> int:
+        """Создаёт скруглённый прямоугольник.
 
-        Возвращаемое значение: ID Скруглённого прямоугольника на холсте
+        Аргументы:
+            cnv:    Холст Tkinter.
+            px1:    Левая точка прямоугольника.
+            py1:    Верхняя точка прямоугольника.
+            px2:    Правая точка прямоугольника.
+            py2:    Нижняя точка прямоугольника.
+            radius: Радиус скругления.
+            kwargs: Дополнительные аргументы cnv.create_polygon().
+
+        Возвращаемое значение: ID Скруглённого прямоугольника на холсте.
         """
 
-    user_selected(self) -> None  # Обработчик события выбора пользователя
-        """Аргументы:
-            wid:    Виджет Listbox Tkinter
+    def user_selected(self) -> None:
+        """Обработчик события выбора пользователя.
+
+        Аргументы:
+            wid:    Виджет Listbox Tkinter.
         """
 
-    resize(self, event) -> None  # Обработчик изменения размера окна
+    def resize(self, event) -> None:
+        """Обработчик изменения размера окна."""
 
-    send_message(self, message: str) -> None  # Отправляет сообщение на сервер
-        """Аргументы:
-            message:    Сообщение
+    def send_message(self, message: str) -> None:
+        """Отправляет сообщение на сервер.
+
+        Аргументы:
+            message:    Сообщение.
         """
 
-    receive(self) -> None  # Получает сообщения от сервера
+    def add_user(self, username: str) -> None:
+        """Добавляет пользователя по имени.
 
-    main(self)  # Основная функция клиента
+        Аргументы:
+            username:   Имя пользователя.
+        """
+
+    def receive(self) -> None:
+        """Получает сообщения от сервера."""
+
+    def send_idle(self) -> None:
+        """Отправляет сообщение серверу о том, что клиент до сих пор открыт."""
+
+    def login_tab(self, clear=True) -> None:
+        """Перемещает на начальную вкладку."""
+
+    def on_destroy(self):
+        """Обработчик выхода из приложения."""
+
+    def main(self):
+        """Основная функция клиента."""
+
 ```

@@ -57,6 +57,13 @@ class Window:
         self.elements[id_] = element
         element.pack(*args, **kwargs)
 
+    def clear(self) -> None:
+        """Очищает все элементы."""
+        for child in self.tk_window.winfo_children():
+            child.destroy()
+
+        self.elements = {}
+
     def __getattribute__(self, id_: str):
         """Получает элемент по его ID.
 
@@ -65,7 +72,7 @@ class Window:
 
         Возвращаемое значение: Элемент.
         """
-        if id_ in ["pack", "place", "tk_window", "elements"]:
+        if id_ in ["pack", "place", "tk_window", "elements", "clear"]:
             return object.__getattribute__(self, id_)
 
         return object.__getattribute__(self, "elements")[id_]
@@ -84,6 +91,7 @@ class MessengerClient:
     MESSAGE_BACK_COLOR2 = "#eee"
     MESSAGE_FORE_COLOR2 = "#444"
     _RECEIVE_SLEEP_TIME = 1 / 60
+    _IDLE_SLEEP_TIME = 1 / 3
 
     def __init__(self) -> None:
         """Инициализация класса."""
@@ -100,6 +108,7 @@ class MessengerClient:
         self.__temp_messages: list = []
 
         Thread(target=self.receive, daemon=True).start()
+        Thread(target=self.send_idle, daemon=True).start()
 
         self.main()
 
@@ -410,6 +419,22 @@ class MessengerClient:
 
         self.send(["send_message", message, self._userid_selected])
 
+    def add_user(self, username: str) -> None:
+        """Добавляет пользователя по имени.
+
+        Аргументы:
+            username:   Имя пользователя.
+        """
+        for uid, username2 in enumerate(self._logins.values()):
+            if username == username2:
+                listbox = self.win.userlist
+                listbox.select_clear(0, tk.END)
+                listbox.select_set(uid)
+                listbox.event_generate("<<ListboxSelect>>")
+                return
+
+        self.send(["find_user", username])
+
     def receive(self) -> None:
         """Получает сообщения от сервера."""
         while True:
@@ -566,15 +591,36 @@ class MessengerClient:
                     )
                     self.root.bind("<Configure>", self.resize)
                     self.win.place(
+                        "add_user_name",
+                        ttk.Entry(font="Arial 16"),
+                        x=5,
+                        y=5,
+                        h=30,
+                        relw=0.3,
+                        w=-40,
+                    )
+                    self.win.place(
+                        "add_user_button",
+                        ttk.Button(text="+", command=lambda:
+                                        self.add_user(
+                                            self.win.add_user_name.get())
+                                   ),
+                        relx=0.3,
+                        x=-35,
+                        w=30,
+                        y=5,
+                        h=30
+                    )
+                    self.win.place(
                         "userlist",
                         listbox,
                         relw=0.3,
                         relh=1,
                         anchor=tk.NW,
                         x=5,
-                        y=5,
+                        y=40,
                         w=-10,
-                        h=-10
+                        h=-45
                     )
                     scrollbar = ttk.Scrollbar(command=listbox.yview)
                     self.win.place(
@@ -608,35 +654,58 @@ class MessengerClient:
                     listbox.select_set(0)
 
                 listbox.event_generate("<<ListboxSelect>>")
+            elif com == "find_user_result":
+                self.win.add_user_name.delete(0, tk.END)
+
+                if data[1] is False:
+                    self.show_error(
+                        "Не найдено",
+                        "Не удалось найти указанного пользователя"
+                    )
+                else:
+                    arr = data[1]
+
+                    self._logins[str(arr[0])] = arr[1]
+                    listbox = self.win.userlist
+                    listbox.insert(tk.END, f" {arr[1]}")
+                    listbox.select_clear(0)
+                    listbox.select_set(len(self._logins) - 1)
+                    listbox.event_generate("<<ListboxSelect>>")
+            elif com == "not_logged":
+                if self._userid_selected == -1:
+                    self.show_error(
+                        "Требуется вход",
+                        "Для совершения этой операции требуется вход в аккаунт"
+                    )
+                else:
+                    self.login_tab()
+                    self.show_error(
+                        "Вы вышли из аккаунта",
+                        "Требуется заново войти в аккаунт для совершения этой \
+операции"
+                    )
 
             sleep(self._RECEIVE_SLEEP_TIME)
 
-    def main(self):
-        """Основная функция клиента."""
-        self.root = tk.Tk()
-        self.root.wm_title("Messenger")
-        self.root.wm_geometry("1000x600")
-        self.win = Window(self.root)
+    def send_idle(self) -> None:
+        """Отправляет сообщение серверу о том, что клиент до сих пор открыт."""
+        while True:
+            if self._is_on_main_tab:
+                self.send(["client_alive"])
 
-        self.last_height = self.root.winfo_height()
+            sleep(self._IDLE_SLEEP_TIME)
 
-        style = ttk.Style(self.root)
-        style.theme_use("clam")
-        self.root.configure(bg=self.MAIN_BACKGROUND)
-        style.configure(
-            "TLabel",
-            background=self.MAIN_BACKGROUND,
-            foreground=self.MAIN_FOREGROUND
-        )
-        style.configure(
-            "TEntry",
-            background=self.MAIN_BACKGROUND
-        )
-        style.configure(
-            "TButton",
-            background=self.SECOND_BACKGROUND,
-            activebackground=self.THIRD_BACKGROUND
-        )
+    def login_tab(self, clear=True) -> None:
+        """Перемещает на начальную вкладку."""
+        self.__sended = []
+        self.__received = []
+        self._logins = {}
+        self._userid_selected = -1
+        self._is_on_main_tab = False
+        self.__temp_messages = []
+
+        if clear:
+            self.win.clear()
 
         self.win.place(
             "loadscreen_registration",
@@ -710,6 +779,42 @@ class MessengerClient:
             y=-12,
             x=-12
         )
+
+    def on_destroy(self):
+        """Обработчик выхода из приложения."""
+        self.send(["disconnect"])
+        self.root.destroy()
+
+    def main(self):
+        """Основная функция клиента."""
+        self.root = tk.Tk()
+        self.root.wm_title("Messenger")
+        self.root.wm_geometry("1000x600")
+        self.win = Window(self.root)
+
+        self.last_height = self.root.winfo_height()
+
+        style = ttk.Style(self.root)
+        style.theme_use("clam")
+        self.root.configure(bg=self.MAIN_BACKGROUND)
+        style.configure(
+            "TLabel",
+            background=self.MAIN_BACKGROUND,
+            foreground=self.MAIN_FOREGROUND
+        )
+        style.configure(
+            "TEntry",
+            background=self.MAIN_BACKGROUND
+        )
+        style.configure(
+            "TButton",
+            background=self.SECOND_BACKGROUND,
+            activebackground=self.THIRD_BACKGROUND
+        )
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_destroy)
+
+        self.login_tab(False)
 
         self.root.mainloop()
 
