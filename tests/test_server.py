@@ -2,8 +2,6 @@
 from os import path
 from sqlite3 import OperationalError
 from sqlite3 import ProgrammingError
-from string import ascii_letters
-from random import choice, randint
 
 from pytest import mark
 
