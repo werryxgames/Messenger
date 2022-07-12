@@ -3,7 +3,6 @@
 
 import tkinter as tk
 
-from json import JSONDecodeError
 from json import dumps
 from json import loads
 from math import ceil

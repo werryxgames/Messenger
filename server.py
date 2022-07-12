@@ -514,7 +514,7 @@ def main() -> None:
 
             if addr not in clients:
                 key = "".join(
-            [choice(ascii_letters + digits) for _ in range(64)]
+                    [choice(ascii_letters + digits) for _ in range(64)]
                              )
                 clients[addr] = [
                     NetworkedClient(sock, addr, key),
