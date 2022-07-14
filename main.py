@@ -724,6 +724,8 @@ class MessengerClient:
         self._userid_selected = -1
         self._is_on_main_tab = False
         self.__temp_messages = []
+        self.__key = None
+        self.__aes = None
 
         if clear:
             self.win.clear()
