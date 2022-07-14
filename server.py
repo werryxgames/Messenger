@@ -526,8 +526,12 @@ def main() -> None:
                     sock.sendto(key, addr)
                     key = None
             else:
-                if clients[addr][0].receive(data):
-                    clients[addr][1] = time()
+                try:
+                    if clients[addr][0].receive(data):
+                        clients[addr][1] = time()
+                except BaseException as e:
+                    clients[addr].close()
+                    print(e)
 
     dtb.close()
 

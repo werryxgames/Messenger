@@ -449,7 +449,12 @@ class MessengerClient:
     def receive(self) -> None:
         """Получает сообщения от сервера."""
         while True:
-            jdata = self._sock.recv(70000)
+            try:
+                jdata = self._sock.recv(70000)
+            except ConnectionResetError:
+                self.login_tab()
+                self.show_error("Сервер отключён", "Сервер принудительно разорвал подключение")
+
             data = self.__decode_message(jdata)
 
             if data is False:
