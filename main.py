@@ -787,7 +787,7 @@ class MessengerClient:
         )
         self.win.place(
             "loadscreen_registration_password_field",
-            ttk.Entry(font="Arial 12"),
+            ttk.Entry(font="Arial 12", show="•"),
             relx=0.5,
             rely=0.5,
             x=160,
