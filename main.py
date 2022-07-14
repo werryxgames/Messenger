@@ -94,6 +94,7 @@ class MessengerClient:
     MESSAGE_FORE_COLOR = "#444"
     MESSAGE_BACK_COLOR2 = "#eee"
     MESSAGE_FORE_COLOR2 = "#444"
+    FRAME_BG_COLOR = "#333"
     _RECEIVE_SLEEP_TIME = 1 / 60
     _IDLE_SLEEP_TIME = 1 / 3
 
@@ -728,28 +729,50 @@ class MessengerClient:
             self.win.clear()
 
         self.win.place(
-            "loadscreen_registration",
-            ttk.Label(text="Регистрация", font="Arial 24 bold"),
+            "loadscreen_background",
+            ttk.Frame(),
             relx=0.5,
-            rely=0,
+            rely=0.5,
+            w=400,
+            h=240,
+            anchor=tk.CENTER,
+        )
+
+        self.win.place(
+            "loadscreen_registration",
+            ttk.Label(
+                text="Регистрация и вход",
+                font="Arial 24 bold",
+                background=self.FRAME_BG_COLOR
+            ),
+            relx=0.5,
+            rely=0.5,
             anchor=tk.N,
-            y=12
+            y=-88
         )
         self.win.place(
             "loadscreen_registration_login",
-            ttk.Label(text="Логин:", font="Arial 16 bold"),
+            ttk.Label(
+                text="Логин:",
+                font="Arial 16 bold",
+                background=self.FRAME_BG_COLOR
+            ),
             relx=0.5,
             rely=0.5,
-            x=-200,
+            x=-160,
             y=-20,
             anchor=tk.W
         )
         self.win.place(
             "loadscreen_registration_password",
-            ttk.Label(text="Пароль:", font="Arial 16 bold"),
+            ttk.Label(
+                text="Пароль:",
+                font="Arial 16 bold",
+                background=self.FRAME_BG_COLOR
+            ),
             relx=0.5,
             rely=0.5,
-            x=-200,
+            x=-160,
             y=20,
             anchor=tk.W
         )
@@ -758,7 +781,7 @@ class MessengerClient:
             ttk.Entry(font="Arial 12"),
             relx=0.5,
             rely=0.5,
-            x=200,
+            x=160,
             y=-20,
             anchor=tk.E
         )
@@ -767,7 +790,7 @@ class MessengerClient:
             ttk.Entry(font="Arial 12"),
             relx=0.5,
             rely=0.5,
-            x=200,
+            x=160,
             y=20,
             anchor=tk.E
         )
@@ -781,11 +804,11 @@ class MessengerClient:
                     self.win.loadscreen_registration_password_field.get()
                 ])
             ),
-            relx=0,
-            rely=1,
+            relx=0.5,
+            rely=0.5,
             anchor=tk.SW,
-            y=-12,
-            x=12
+            y=88,
+            x=-160
         )
         self.win.place(
             "loadscreen_login_button",
@@ -797,11 +820,11 @@ class MessengerClient:
                     self.win.loadscreen_registration_password_field.get()
                 ])
             ),
-            relx=1,
-            rely=1,
+            relx=0.5,
+            rely=0.5,
             anchor=tk.SE,
-            y=-12,
-            x=-12
+            y=88,
+            x=160
         )
 
     def on_destroy(self):
@@ -814,7 +837,7 @@ class MessengerClient:
         self.root = tk.Tk()
         self.root.wm_title("Messenger")
         self.root.wm_geometry("1000x600")
-        self.root.minsize(500, 200)
+        self.root.minsize(500, 340)
         self.win = Window(self.root)
 
         self.last_height = self.root.winfo_height()
@@ -835,6 +858,13 @@ class MessengerClient:
             "TButton",
             background=self.SECOND_BACKGROUND,
             activebackground=self.THIRD_BACKGROUND
+        )
+        style.configure(
+            "TFrame",
+            background=self.FRAME_BG_COLOR,
+            borderwidth=0,
+            highlightthickness=0,
+            relief=tk.SUNKEN
         )
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_destroy)
