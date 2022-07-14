@@ -449,7 +449,12 @@ class MessengerClient:
     def receive(self) -> None:
         """Получает сообщения от сервера."""
         while True:
-            jdata = self._sock.recv(70000)
+            try:
+                jdata = self._sock.recv(70000)
+            except ConnectionResetError:
+                self.login_tab()
+                self.show_error("Сервер отключён", "Сервер принудительно разорвал подключение")
+
             data = self.__decode_message(jdata)
 
             if data is False:
@@ -705,8 +710,10 @@ class MessengerClient:
     def send_idle(self) -> None:
         """Отправляет сообщение серверу о том, что клиент до сих пор открыт."""
         while True:
+            if self.__key is not None:
+                self.send(["client_alive"])
+
             sleep(self._IDLE_SLEEP_TIME)
-            self.send(["client_alive"])
 
     def login_tab(self, clear=True) -> None:
         """Перемещает на начальную вкладку."""
@@ -731,33 +738,37 @@ class MessengerClient:
         self.win.place(
             "loadscreen_registration_login",
             ttk.Label(text="Логин:", font="Arial 16 bold"),
-            relx=0,
-            rely=0.45,
-            x=16,
+            relx=0.5,
+            rely=0.5,
+            x=-200,
+            y=-20,
             anchor=tk.W
         )
         self.win.place(
             "loadscreen_registration_password",
             ttk.Label(text="Пароль:", font="Arial 16 bold"),
-            relx=0,
-            rely=0.55,
-            x=16,
+            relx=0.5,
+            rely=0.5,
+            x=-200,
+            y=20,
             anchor=tk.W
         )
         self.win.place(
             "loadscreen_registration_login_field",
             ttk.Entry(font="Arial 12"),
-            relx=1,
-            rely=0.45,
-            x=-16,
+            relx=0.5,
+            rely=0.5,
+            x=200,
+            y=-20,
             anchor=tk.E
         )
         self.win.place(
             "loadscreen_registration_password_field",
             ttk.Entry(font="Arial 12"),
-            relx=1,
-            rely=0.55,
-            x=-16,
+            relx=0.5,
+            rely=0.5,
+            x=200,
+            y=20,
             anchor=tk.E
         )
         self.win.place(
@@ -803,6 +814,7 @@ class MessengerClient:
         self.root = tk.Tk()
         self.root.wm_title("Messenger")
         self.root.wm_geometry("1000x600")
+        self.root.minsize(500, 200)
         self.win = Window(self.root)
 
         self.last_height = self.root.winfo_height()
