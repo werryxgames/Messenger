@@ -469,7 +469,10 @@ class MessengerClient:
                 jdata = self._sock.recv(70000)
             except ConnectionResetError:
                 self.login_tab()
-                self.show_error("Сервер отключён", "Сервер принудительно разорвал подключение")
+                self.show_error(
+                    "Сервер отключён",
+                    "Сервер принудительно разорвал подключение"
+                )
 
             data = self.__decode_message(jdata)
 

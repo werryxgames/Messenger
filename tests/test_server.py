@@ -240,7 +240,8 @@ def test_get_account_data_exists(
         dtb.create_account(login, password_)
 
     for sender, receiver, text in x_messages:
-        assert dtb.sql("INSERT INTO direct_messages (sender, receiver, content) \
+        assert dtb.sql("INSERT INTO direct_messages \
+            (sender, receiver, content) \
             VALUES (?, ?, ?);", [sender, receiver, text], noresult=True)
 
     result = dtb.get_account_data(name)
