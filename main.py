@@ -113,13 +113,16 @@ class MessengerClient:
         self.__temp_messages: list = []
         self.__key = None
         self.__aes = None
+        self.destroyed = False
+        self.__queued_requests = []
 
         Thread(target=self.receive, daemon=True).start()
         Thread(target=self.send_idle, daemon=True).start()
 
-        self._sock.send(b"\x05\x03\xff\x01")
-
         self.main()
+
+        if not self.destroyed:
+            self._sock.send(b"\x05\x03\xff\x01")
 
     @staticmethod
     def show_error(title: str, message: str) -> None:
@@ -145,6 +148,11 @@ class MessengerClient:
 
     def __encode_message(self, message) -> bytes:
         """Превращает объекты, преобразоваемые в JSON в байты."""
+        if self.__key is None and not self.destroyed:
+            self._sock.send(b"\x05\x03\xff\x01")
+            self.__queued_requests.append(message)
+            return None
+
         return self.__aes.encrypt(dumps(
             message,
             separators=(",", ":"),
@@ -156,6 +164,10 @@ class MessengerClient:
         if self.__key is None:
             self.__key = message.decode("ascii")
             self.__aes = acrypt(KEY_EXTRA + self.__key)
+
+            for req in self.__queued_requests:
+                self.send(req)
+
             return False
 
         return loads(self.__aes.decrypt(message))
@@ -166,7 +178,10 @@ class MessengerClient:
         Аргументы:
             message:    Сообщение.
         """
-        self._sock.send(self.__encode_message(message))
+        msg = self.__encode_message(message)
+
+        if msg is not None:
+            self._sock.send(msg)
 
     @staticmethod
     def create_round_rectangle(
@@ -711,7 +726,7 @@ class MessengerClient:
     def send_idle(self) -> None:
         """Отправляет сообщение серверу о том, что клиент до сих пор открыт."""
         while True:
-            if self.__key is not None:
+            if self.__key is not None and self._is_on_main_tab:
                 self.send(["client_alive"])
 
             sleep(self._IDLE_SLEEP_TIME)
@@ -831,6 +846,7 @@ class MessengerClient:
 
     def on_destroy(self):
         """Обработчик выхода из приложения."""
+        self.destroyed = True
         self.send(["disconnect"])
         self.root.destroy()
 

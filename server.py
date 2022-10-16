@@ -417,22 +417,20 @@ class NetworkedClient:
             if isinstance(result, list):
                 status = result[0]
                 self.id_ = result[1]
+                self.send(["register_status", status])
 
-            self.send(["register_status", status])
-
-            if status == 0:
-                self.login, self.__password = args[:2]
+                if status == 0:
+                    self.login, self.__password = args[:2]
         elif com == "login":
             result = dtb.login_account(*args[:2])
 
             if isinstance(result, list):
                 status = result[0]
                 self.id_ = result[1]
+                self.send(["login_status", status])
 
-            self.send(["login_status", status])
-
-            if status == 0:
-                self.login, self.__password = args[:2]
+                if status == 0:
+                    self.login, self.__password = args[:2]
         elif com == "disconnect":
             self.close()
             return False
