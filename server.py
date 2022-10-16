@@ -527,15 +527,9 @@ def main() -> None:
                 try:
                     if clients[addr][0].receive(data):
                         clients[addr][1] = time()
-<<<<<<< HEAD
-                except BaseException as e:
-                    clients[addr].close()
-                    print(e)
-=======
                 except BaseException as exc:
                     clients[addr][0].close()
                     print(exc)
->>>>>>> fix-interface
 
     dtb.close()
 
