@@ -416,22 +416,20 @@ class NetworkedClient:
             if isinstance(result, list):
                 status = result[0]
                 self.id_ = result[1]
+                self.send(["register_status", status])
 
-            self.send(["register_status", status])
-
-            if status == 0:
-                self.login, self.__password = args[:2]
+                if status == 0:
+                    self.login, self.__password = args[:2]
         elif com == "login":
             result = dtb.login_account(*args[:2])
 
             if isinstance(result, list):
                 status = result[0]
                 self.id_ = result[1]
+                self.send(["login_status", status])
 
-            self.send(["login_status", status])
-
-            if status == 0:
-                self.login, self.__password = args[:2]
+                if status == 0:
+                    self.login, self.__password = args[:2]
         elif com == "disconnect":
             self.close()
             return False
@@ -509,7 +507,6 @@ def main() -> None:
             data = adrdata[0]
             addr = adrdata[1]
             key = None
-
             print("<", data)
 
             if addr not in clients:
@@ -524,34 +521,41 @@ def main() -> None:
                 if data == b"\x05\x03\xff\x01":
                     key = key.encode("ascii")
                     sock.sendto(key, addr)
+                    print(">", key)
                     key = None
             else:
                 try:
                     if clients[addr][0].receive(data):
                         clients[addr][1] = time()
+<<<<<<< HEAD
                 except BaseException as e:
                     clients[addr].close()
                     print(e)
+=======
+                except BaseException as exc:
+                    clients[addr][0].close()
+                    print(exc)
+>>>>>>> fix-interface
 
     dtb.close()
 
 
 if __name__ == "__main__":
-    dtb.reset_database()
-    print(len(dtb.create_account("Werryx", "123456")) > 1)
-    print(len(dtb.create_account("Werland", "123456")) > 1)
-    print(len(dtb.create_account("zhbesluk", "123456")) > 1)
-    print(len(dtb.create_account("WTest", "123456")) > 1)
-    print(dtb.sql("""
-        INSERT INTO direct_messages (sender, receiver, content) VALUES
-            (2, 1, "Привет, я Werland"),
-            (2, 1, ?),
-            (1, 2, "Я - Werryx"),
-            (2, 1, "Как дела?"),
-            (3, 1, "Помнишь?"),
-            (1, 2, "Нормально"),
-            (4, 1, "TEST");
-    """, [f"А ты?{' ОЧЕНЬ ДЛИННАЯ СТРОКА!' * 20}"], noresult=True))
-    print(dtb.sql("SELECT * FROM direct_messages;"))
+    # dtb.reset_database()
+    # print(len(dtb.create_account("Werryx", "123456")) > 1)
+    # print(len(dtb.create_account("Werland", "123456")) > 1)
+    # print(len(dtb.create_account("zhbesluk", "123456")) > 1)
+    # print(len(dtb.create_account("WTest", "123456")) > 1)
+    # print(dtb.sql("""
+    #     INSERT INTO direct_messages (sender, receiver, content) VALUES
+    #         (2, 1, "Привет, я Werland"),
+    #         (2, 1, ?),
+    #         (1, 2, "Я - Werryx"),
+    #         (2, 1, "Как дела?"),
+    #         (3, 1, "Помнишь?"),
+    #         (1, 2, "Нормально"),
+    #         (4, 1, "TEST");
+    # """, [f"А ты?{' ОЧЕНЬ ДЛИННАЯ СТРОКА!' * 20}"], noresult=True))
+    # print(dtb.sql("SELECT * FROM direct_messages;"))
 
     main()

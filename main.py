@@ -94,6 +94,7 @@ class MessengerClient:
     MESSAGE_FORE_COLOR = "#444"
     MESSAGE_BACK_COLOR2 = "#eee"
     MESSAGE_FORE_COLOR2 = "#444"
+    FRAME_BG_COLOR = "#333"
     _RECEIVE_SLEEP_TIME = 1 / 60
     _IDLE_SLEEP_TIME = 1 / 3
 
@@ -112,13 +113,16 @@ class MessengerClient:
         self.__temp_messages: list = []
         self.__key = None
         self.__aes = None
+        self.destroyed = False
+        self.__queued_requests = []
 
         Thread(target=self.receive, daemon=True).start()
         Thread(target=self.send_idle, daemon=True).start()
 
-        self._sock.send(b"\x05\x03\xff\x01")
-
         self.main()
+
+        if not self.destroyed:
+            self._sock.send(b"\x05\x03\xff\x01")
 
     @staticmethod
     def show_error(title: str, message: str) -> None:
@@ -144,6 +148,11 @@ class MessengerClient:
 
     def __encode_message(self, message) -> bytes:
         """Превращает объекты, преобразоваемые в JSON в байты."""
+        if self.__key is None and not self.destroyed:
+            self._sock.send(b"\x05\x03\xff\x01")
+            self.__queued_requests.append(message)
+            return None
+
         return self.__aes.encrypt(dumps(
             message,
             separators=(",", ":"),
@@ -155,6 +164,10 @@ class MessengerClient:
         if self.__key is None:
             self.__key = message.decode("ascii")
             self.__aes = acrypt(KEY_EXTRA + self.__key)
+
+            for req in self.__queued_requests:
+                self.send(req)
+
             return False
 
         return loads(self.__aes.decrypt(message))
@@ -165,7 +178,10 @@ class MessengerClient:
         Аргументы:
             message:    Сообщение.
         """
-        self._sock.send(self.__encode_message(message))
+        msg = self.__encode_message(message)
+
+        if msg is not None:
+            self._sock.send(msg)
 
     @staticmethod
     def create_round_rectangle(
@@ -710,8 +726,10 @@ class MessengerClient:
     def send_idle(self) -> None:
         """Отправляет сообщение серверу о том, что клиент до сих пор открыт."""
         while True:
+            if self.__key is not None and self._is_on_main_tab:
+                self.send(["client_alive"])
+
             sleep(self._IDLE_SLEEP_TIME)
-            self.send(["client_alive"])
 
     def login_tab(self, clear=True) -> None:
         """Перемещает на начальную вкладку."""
@@ -721,48 +739,76 @@ class MessengerClient:
         self._userid_selected = -1
         self._is_on_main_tab = False
         self.__temp_messages = []
+        self.__key = None
+        self.__aes = None
 
         if clear:
             self.win.clear()
 
         self.win.place(
-            "loadscreen_registration",
-            ttk.Label(text="Регистрация", font="Arial 24 bold"),
+            "loadscreen_background",
+            ttk.Frame(),
             relx=0.5,
-            rely=0,
+            rely=0.5,
+            w=400,
+            h=240,
+            anchor=tk.CENTER,
+        )
+
+        self.win.place(
+            "loadscreen_registration",
+            ttk.Label(
+                text="Регистрация и вход",
+                font="Arial 24 bold",
+                background=self.FRAME_BG_COLOR
+            ),
+            relx=0.5,
+            rely=0.5,
             anchor=tk.N,
-            y=12
+            y=-88
         )
         self.win.place(
             "loadscreen_registration_login",
-            ttk.Label(text="Логин:", font="Arial 16 bold"),
-            relx=0,
-            rely=0.45,
-            x=16,
+            ttk.Label(
+                text="Логин:",
+                font="Arial 16 bold",
+                background=self.FRAME_BG_COLOR
+            ),
+            relx=0.5,
+            rely=0.5,
+            x=-160,
+            y=-20,
             anchor=tk.W
         )
         self.win.place(
             "loadscreen_registration_password",
-            ttk.Label(text="Пароль:", font="Arial 16 bold"),
-            relx=0,
-            rely=0.55,
-            x=16,
+            ttk.Label(
+                text="Пароль:",
+                font="Arial 16 bold",
+                background=self.FRAME_BG_COLOR
+            ),
+            relx=0.5,
+            rely=0.5,
+            x=-160,
+            y=20,
             anchor=tk.W
         )
         self.win.place(
             "loadscreen_registration_login_field",
             ttk.Entry(font="Arial 12"),
-            relx=1,
-            rely=0.45,
-            x=-16,
+            relx=0.5,
+            rely=0.5,
+            x=160,
+            y=-20,
             anchor=tk.E
         )
         self.win.place(
             "loadscreen_registration_password_field",
-            ttk.Entry(font="Arial 12"),
-            relx=1,
-            rely=0.55,
-            x=-16,
+            ttk.Entry(font="Arial 12", show="•"),
+            relx=0.5,
+            rely=0.5,
+            x=160,
+            y=20,
             anchor=tk.E
         )
         self.win.place(
@@ -775,11 +821,11 @@ class MessengerClient:
                     self.win.loadscreen_registration_password_field.get()
                 ])
             ),
-            relx=0,
-            rely=1,
+            relx=0.5,
+            rely=0.5,
             anchor=tk.SW,
-            y=-12,
-            x=12
+            y=88,
+            x=-160
         )
         self.win.place(
             "loadscreen_login_button",
@@ -791,15 +837,16 @@ class MessengerClient:
                     self.win.loadscreen_registration_password_field.get()
                 ])
             ),
-            relx=1,
-            rely=1,
+            relx=0.5,
+            rely=0.5,
             anchor=tk.SE,
-            y=-12,
-            x=-12
+            y=88,
+            x=160
         )
 
     def on_destroy(self):
         """Обработчик выхода из приложения."""
+        self.destroyed = True
         self.send(["disconnect"])
         self.root.destroy()
 
@@ -808,6 +855,7 @@ class MessengerClient:
         self.root = tk.Tk()
         self.root.wm_title("Messenger")
         self.root.wm_geometry("1000x600")
+        self.root.minsize(500, 340)
         self.win = Window(self.root)
 
         self.last_height = self.root.winfo_height()
@@ -828,6 +876,13 @@ class MessengerClient:
             "TButton",
             background=self.SECOND_BACKGROUND,
             activebackground=self.THIRD_BACKGROUND
+        )
+        style.configure(
+            "TFrame",
+            background=self.FRAME_BG_COLOR,
+            borderwidth=0,
+            highlightthickness=0,
+            relief=tk.SUNKEN
         )
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_destroy)
