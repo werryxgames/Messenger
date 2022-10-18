@@ -3,3 +3,4 @@ __pycache__
 readmegen
 *.bat
 release
+.logindata

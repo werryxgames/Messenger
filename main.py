@@ -7,6 +7,8 @@ from json import dumps
 from json import loads
 from math import ceil
 from math import floor
+from os import path as opath
+from os import system
 from socket import AF_INET
 from socket import SOCK_DGRAM
 from socket import socket
@@ -17,6 +19,13 @@ from tkinter import ttk
 from aes_crypto import acrypt
 
 KEY_EXTRA = "LX@$wmd3l8Yt9zxj9WH8yp@DOzNrDk2^flJzzNU!%oYy3EUoXabyGF~k%5TiJBH*"
+KEY_LOGIN_FILE = "rW9M8%KphnA*Jt1rCNG*8ANo51$h*8TRI&c@mPnD)8$*EMUzxq0Kr(B5M~qd\
+C)QM"
+
+
+def absolute(path):
+    """Возвращает абсолютный путь к path."""
+    return opath.join(opath.dirname(opath.realpath(__file__)), path)
 
 
 class Window:
@@ -95,6 +104,7 @@ class MessengerClient:
     MESSAGE_BACK_COLOR2 = "#eee"
     MESSAGE_FORE_COLOR2 = "#444"
     FRAME_BG_COLOR = "#333"
+    PANEL_BACKGROUND = "#222"
     _RECEIVE_SLEEP_TIME = 1 / 60
     _IDLE_SLEEP_TIME = 1 / 3
 
@@ -115,6 +125,8 @@ class MessengerClient:
         self.__aes = None
         self.destroyed = False
         self.__queued_requests = []
+        self.__last_login = None
+        self.__last_password = None
 
         Thread(target=self.receive, daemon=True).start()
         Thread(target=self.send_idle, daemon=True).start()
@@ -182,6 +194,57 @@ class MessengerClient:
 
         if msg is not None:
             self._sock.send(msg)
+
+    def send_register(self, login, password):
+        """Присылает сообщение регистрации на сервер."""
+        self.__last_login = login
+        self.__last_password = password
+        self.send(["register", login, password])
+
+    def send_login(self, login, password):
+        """Присылает сообщение входа в аккаунт на сервер."""
+        self.__last_login = login
+        self.__last_password = password
+        self.send(["login", login, password])
+
+    def remember_login(self):
+        """Записывает логин и пароль для дальнейшего автоматического входа."""
+        if self.__last_login is None or self.__last_password is None:
+            return False
+
+        login = str(self.__last_login)
+        password = str(self.__last_password)
+
+        with open(absolute(".logindata"), "wb") as lfile:
+            lfile.write(
+                acrypt(KEY_LOGIN_FILE).encrypt("\n".join([login, password]))
+            )
+
+        return True
+
+    def restore_login(self):
+        """Восстанавливает предыдущий введённый логин и пароль."""
+        if self.__last_login is not None and self.__last_password is not None:
+            return [self.__last_login, self.__last_password]
+
+        try:
+            with open(absolute(".logindata"), "rb") as lfile:
+                data = acrypt(KEY_LOGIN_FILE).decrypt(lfile.read()).split("\n")
+        except FileNotFoundError:
+            return None
+
+        return data
+
+    def forget_login(self):
+        """Выходит из аккаунта."""
+        system(f'rm {absolute(".logindata")}')
+        self.__aes = None
+        self.__key = None
+        self._is_on_main_tab = False
+        self._logins = {}
+        self.__sended = []
+        self.__received = []
+        self.login_tab()
 
     @staticmethod
     def create_round_rectangle(
@@ -485,6 +548,7 @@ class MessengerClient:
                 status = data[1]
 
                 if status == 0:
+                    self.remember_login()
                     self.send(["get_account_data"])
                 elif status == 1:
                     self.show_error(
@@ -510,6 +574,7 @@ class MessengerClient:
                 status = data[1]
 
                 if status == 0:
+                    self.remember_login()
                     self.send(["get_account_data"])
                 elif status == 1:
                     self.show_error(
@@ -536,6 +601,9 @@ class MessengerClient:
                         "Неверный пароль",
                         "Пароль от аккаунта не подходит"
                     )
+
+                if status != 0:
+                    self.login_tab()
             elif com == "account_data":
                 adata = data[1]
                 self.__sended = adata[0]
@@ -564,14 +632,37 @@ class MessengerClient:
                         bd=0,
                         highlightthickness=0
                     )
+                    top_panel = ttk.Frame(frame, style="Panel.TFrame")
+                    self.win.place(
+                        "top_panel",
+                        top_panel,
+                        h=35,
+                        relw=1
+
+                    )
+                    self.win.place(
+                        "top_panel_logout",
+                        ttk.Button(
+                            top_panel,
+                            text="Выйти",
+                            command=self.forget_login
+                        ),
+                        anchor=tk.NE,
+                        relx=1,
+                        x=-3,
+                        w=50,
+                        h=29,
+                        y=3
+                    )
                     cnv_sbar = ttk.Scrollbar(frame)
                     self.win.place(
                         "messages_scrollbar",
                         cnv_sbar,
+                        y=35,
                         relx=1,
                         anchor=tk.NE,
                         relh=1,
-                        h=-30
+                        h=-60
                     )
                     cnv_sbar.configure(command=cnv.yview)
                     cnv.configure(yscrollcommand=cnv_sbar.set)
@@ -581,9 +672,9 @@ class MessengerClient:
                         relw=1,
                         relh=1,
                         x=20,
-                        y=5,
+                        y=35,
                         w=-40,
-                        h=-35
+                        h=-5
                     )
                     msg_input = ttk.Entry(font="Arial 16")
                     self.win.place(
@@ -818,11 +909,10 @@ class MessengerClient:
             "loadscreen_registration_button",
             ttk.Button(
                 text="Зарегестрироваться",
-                command=lambda: self.send([
-                    "register",
+                command=lambda: self.send_register(
                     self.win.loadscreen_registration_login_field.get(),
                     self.win.loadscreen_registration_password_field.get()
-                ])
+                )
             ),
             relx=0.5,
             rely=0.5,
@@ -834,11 +924,10 @@ class MessengerClient:
             "loadscreen_login_button",
             ttk.Button(
                 text="Войти",
-                command=lambda: self.send([
-                    "login",
+                command=lambda: self.send_login(
                     self.win.loadscreen_registration_login_field.get(),
                     self.win.loadscreen_registration_password_field.get()
-                ])
+                )
             ),
             relx=0.5,
             rely=0.5,
@@ -849,8 +938,10 @@ class MessengerClient:
 
     def on_destroy(self):
         """Обработчик выхода из приложения."""
+        if not self.destroyed and self.__key is not None:
+            self.send(["disconnect"])
+
         self.destroyed = True
-        self.send(["disconnect"])
         self.root.destroy()
 
     def main(self):
@@ -887,10 +978,29 @@ class MessengerClient:
             highlightthickness=0,
             relief=tk.SUNKEN
         )
+        style.configure(
+            "Panel.TFrame",
+            background=self.PANEL_BACKGROUND,
+            borderwidth=0,
+            highlightthickness=0,
+            relief=tk.SUNKEN
+        )
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_destroy)
 
-        self.login_tab(False)
+        data = self.restore_login()
+
+        if data is None:
+            self.login_tab(False)
+        else:
+            self.win.place(
+                "autologin.label",
+                ttk.Label(self.root, font="Arial 24 bold", text="Вход в аккаунт..."),
+                relx=0.5,
+                rely=0.5,
+                anchor=tk.CENTER
+            )
+            self.send(["login", data[0], data[1]])
 
         self.root.mainloop()
 
