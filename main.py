@@ -995,7 +995,11 @@ class MessengerClient:
         else:
             self.win.place(
                 "autologin.label",
-                ttk.Label(self.root, font="Arial 24 bold", text="Вход в аккаунт..."),
+                ttk.Label(
+                    self.root,
+                    font="Arial 24 bold",
+                    text="Вход в аккаунт..."
+                ),
                 relx=0.5,
                 rely=0.5,
                 anchor=tk.CENTER
